@@ -26,6 +26,15 @@ floor, peak = np.percentile(db, 10), np.percentile(db, 98)
 VOICE_DB = os.environ.get('VOICE_DB')  # 声の下に雑音がある声は、声とみなす大きさ（dB、例 -30）を決めうちする
 def find_gaps(th, minlen):
     voiced = db > (float(VOICE_DB) if VOICE_DB else floor + (peak - floor) * th)
+    # ため息や息つぎのような短い音（MINV 秒より短い）は、声とみなさない（Audio tags でよく入る）
+    i = 0; T0 = len(voiced); mv = int(float(os.environ.get('MINV', '0.4')) * 100)
+    while i < T0:
+        if voiced[i]:
+            j = i
+            while j < T0 and voiced[j]: j += 1
+            if j - i < mv: voiced[i:j] = False
+            i = j
+        else: i += 1
     gaps = []; i = 0; T = len(voiced)
     while i < T:
         if not voiced[i]:
@@ -45,7 +54,10 @@ def norm(t):
 if words:
     # 文字起こしの1文字ずつの時刻をつかって、セリフの文字にあてはめて切る
     fix = json.load(open(os.path.join(root, 'tools', 'tts_fix.json'), encoding='utf8'))
-    lines = [norm(fix.get(t, t)) for _, t in items]
+    def readas(t):  # tts_fix.json は「書き → 読み」の置きかえ表
+        for k in sorted(fix, key=len, reverse=True): t = t.replace(k, fix[k])
+        return t
+    lines = [norm(readas(t)) for _, t in items]
     tr = [(w['text'], w['start'], w['end']) for w in words if w.get('type') == 'word']
     tc = []
     for t, a, b in tr:
