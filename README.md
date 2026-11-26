@@ -14,6 +14,9 @@
 - 別のシーンの背景：`img/bg/`（street 住宅街・stadium サッカー場・storm あらし）。Higgsfield（nano_banana_2）でキャラの絵を参考にして作った。足もとの高さは index.html の `BG`
 - 効果音：`audio/sfx/*.mp3`。Higgsfield の search_sound_effects（Epidemic Sound）で選んで、ffmpeg で短く切って音量をそろえた
 - 声：`audio/<id>/b_<ネタ>.mp3`（ボケ）・`r_<ネタ>.mp3`（正しいツッコミ）・`w_<ネタ>_<0-2>.mp3`（ほかの答え）・`x_tadaima / x_uwaa / x_itai / x_goal.mp3`（演出の声）。ElevenLabs（eleven_v3）で `[long pause]` をはさんでまとめて読ませ、`python3 tools/split_voice.py <音声.mp3> <id> <boke|right|wrong|セリフ一覧.json> [文字起こし.json]` で1セリフずつに切る。読みまちがえる言葉は `tools/tts_fix.json` でかなに直して読ませる
+  - 抑揚：`python3 tools/voice_prompts.py <出力フォルダ>` で、セリフごとに Audio tags（`[proud]` `[shouting]` など）を1つだけ頭につけた台本を作る（boke1 / boke2 / rightA / rightB / wrong1〜）。タグをセリフの中に入れると、そこで間があいて切りにくくなる
+  - 1回に読ませるのは 5000 文字まで・音声 6 分くらいまで（それより長いと、とちゅうで切れる）。だから台本を小分けにしている
+  - タグをつけると、ため息のような短い音が入るので、`split_voice.py` は `MINV`（秒、ふつう 0.4）より短い音は声とみなさない。それでも数が合わないときは、ElevenLabs の文字起こし（words.json）をわたして切る
   - 最後の1行は読みとばされることがあるので、セリフのあとに「おしまい。」をつけて読ませ、一覧にも足して切る（あとで x_end.mp3 を消す）
   - 無音で切ったとき「WARN」が出たら、行の数が合っていない。文字起こし（words.json）をつけて切りなおす
 - ネタ：`tools/neta.json`（100本。1回のゲームでランダムに10本）。直したら `python3 tools/sync_data.py` で index.html の `NETA` に入れる。`python3 tools/check_kanji.py` で4年生までの漢字かどうか調べる

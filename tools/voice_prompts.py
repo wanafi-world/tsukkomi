@@ -1,6 +1,6 @@
 # 声をまとめて作るための台本（Audio tags つき）と、切るためのセリフ一覧を作る
-# 使い方: python3 tools/voice_prompts.py <出力フォルダ>  → boke/right/wrong1/wrong2 の .txt（ElevenLabs に読ませる）と _t.json（split_voice.py にわたす）
-# 1回に読ませられるのは 5000 文字まで。タグはボケ＝動きごと、ツッコミ＝さけぶ・あきれる、ほかの答え＝語尾で決める
+# 使い方: python3 tools/voice_prompts.py <出力フォルダ>  → boke1/boke2/rightA/rightB/wrong1〜 の .txt（ElevenLabs に読ませる）と _t.json（split_voice.py にわたす）
+# 1回に読ませられるのは 5000 文字まで。音声が6分ぐらいをこえると、とちゅうで切れるので、短く分ける。タグはボケ＝動きごと、ツッコミ＝さけぶ・あきれる、ほかの答え＝語尾で決める
 import json
 import os, sys
 R=os.path.dirname(os.path.abspath(__file__))+'/'
@@ -31,7 +31,9 @@ def build(items, name):
     json.dump([[a,b] for a,b,_ in items],open(os.path.join(OUT,name+'_t.json'),'w',encoding='utf8'),ensure_ascii=False)
     p='\n[long pause]\n'.join('['+g+'] '+F(t) for _,t,g in items)
     open(os.path.join(OUT,name+'.txt'),'w',encoding='utf8').write(p); print(name,len(items),len(p))
-build([('b_'+n['id'],n['boke'],btag(n)) for n in neta]+X['boke'],'boke')
-build([('r_'+n['id'],n['right'],rt[i%4]) for i,n in enumerate(neta)]+X['right'],'right')
+b=[('b_'+n['id'],n['boke'],btag(n)) for n in neta]+X['boke']
+build(b[:52],'boke1'); build(b[52:],'boke2')
+r=[('r_'+n['id'],n['right'],rt[i%4]) for i,n in enumerate(neta)]+X['right']
+build(r[:50],'rightA'); build(r[50:],'rightB')  # 短いセリフが100こ続くと、間がぬけたり1つとばしたりするので半分ずつ
 w=[(f"w_{n['id']}_{k}",t,wtag(t,i*3+k)) for i,n in enumerate(neta) for k,t in enumerate(n['wrong'])]
-build(w[:150],'wrong1'); build(w[150:],'wrong2')
+for k in range(0,len(w),50): build(w[k:k+50],'wrong%d'%(k//50+1))
