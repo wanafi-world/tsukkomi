@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>なんでやねん道場</title>
+<meta name="tsukkomi-build" content="20261126-1031">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="なんでやねん">
+<meta name="theme-color" content="#553219">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
+<script src="lib/firebase-app-compat.js"></script>
+<script src="lib/firebase-database-compat.js"></script>
+<script src="firebase-config.js?v=20261126-1031"></script>
+<script src="fb-shim.js?v=20261126-1031"></script>
+<style>
+/* 漫才の舞台。左に金びょうぶとセンターマイクの前に立つボケ、右にツッコミを選ぶ札。たて画面では上下に積む */
+:root{
+  --gold:#e3b44a; --gold-deep:#b7832a; --ink:#2b1a10; --paper:#fff7e3;
+  --shu:#e0412a; --wood:#7a4a26; --wood-dark:#553219; --ok:#2e9d55; --muted:#8a6a4a;
+  --f-display:"Dela Gothic One","Hiragino Sans","Yu Gothic",sans-serif;
+  --f-body:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--wood-dark);color:var(--ink);font-family:var(--f-body);font-weight:700;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overflow:hidden;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));}
+button{font-family:inherit}
+.app{height:100%;display:grid;grid-template-columns:1.1fr 1fr;gap:16px;padding-block:14px;max-width:1200px;margin:0 auto}
+@media (max-width:760px),(orientation:portrait){.app{grid-template-columns:1fr;grid-template-rows:minmax(240px,42%) 1fr;gap:10px}}
+
+/* 舞台 */
+.stage{position:relative;border-radius:18px;overflow:hidden;min-height:0;
+  background:
+   repeating-linear-gradient(90deg,transparent 0 24.6%,rgba(120,80,20,.35) 24.6% 25%),
+   radial-gradient(ellipse at 50% 30%,#f6d27a 0%,var(--gold) 45%,var(--gold-deep) 100%);
+  box-shadow:inset 0 0 0 4px var(--wood),0 8px 0 var(--wood);}
+.floor{position:absolute;left:0;right:0;bottom:0;height:22%;background:repeating-linear-gradient(90deg,var(--wood) 0 60px,#8a5530 60px 62px);border-top:4px solid var(--wood-dark)}
+.hud{position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:var(--f-display);font-size:clamp(14px,2vw,20px)}
+.hud span{background:var(--paper);padding:4px 12px;border-radius:999px;box-shadow:0 3px 0 var(--wood)}
+.hud .combo{color:var(--shu)}
+.mic{position:absolute;left:50%;bottom:22%;transform:translateX(-50%);width:6px;height:38%;background:linear-gradient(#bbb,#777);border-radius:3px}
+.mic::before{content:"";position:absolute;top:-22px;left:50%;transform:translateX(-50%);width:22px;height:30px;border-radius:11px;background:radial-gradient(circle at 40% 35%,#eee,#666)}
+.mic::after{content:"";position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:60px;height:10px;border-radius:50%;background:#444}
+.boke{position:absolute;left:18%;bottom:16%;font-size:clamp(70px,11vw,130px);line-height:1;transform-origin:50% 100%;transition:transform .2s}
+.tsukkomi{position:absolute;right:14%;bottom:16%;font-size:clamp(60px,9vw,110px);line-height:1;transform-origin:50% 100%}
+.bubble{position:absolute;left:6%;right:6%;top:15%;background:var(--paper);border:4px solid var(--ink);border-radius:20px;padding:14px 18px;
+  font-size:clamp(17px,2.4vw,26px);line-height:1.45;text-wrap:balance;box-shadow:0 5px 0 rgba(0,0,0,.25)}
+.bubble::after{content:"";position:absolute;left:18%;bottom:-22px;border:12px solid transparent;border-top:14px solid var(--ink)}
+.bubble small{display:block;font-size:.6em;color:var(--muted);letter-spacing:.08em;margin-bottom:2px}
+
+/* 効果 */
+.fx{position:absolute;inset:0;pointer-events:none;display:grid;place-items:center}
+.bang{font-family:var(--f-display);font-size:clamp(70px,13vw,160px);color:var(--shu);-webkit-text-stroke:6px var(--paper);paint-order:stroke fill;transform:rotate(-8deg) scale(0);opacity:0}
+.bang.small{font-size:clamp(44px,8vw,96px)}
+.bang.go{animation:bang .9s cubic-bezier(.2,1.6,.4,1) forwards}
+@keyframes bang{0%{transform:rotate(-8deg) scale(0);opacity:1}30%{transform:rotate(-8deg) scale(1.15)}60%{transform:rotate(-6deg) scale(1)}100%{transform:rotate(-6deg) scale(1);opacity:1}}
+.burst{position:absolute;width:10px;height:10px}
+.burst i{position:absolute;width:14px;height:4px;background:var(--shu);border-radius:2px;left:0;top:0;opacity:0}
+.burst.go i{animation:ray .6s ease-out forwards}
+@keyframes ray{0%{opacity:1;transform:rotate(var(--a)) translateX(10px)}100%{opacity:0;transform:rotate(var(--a)) translateX(180px) scaleX(2)}}
+.prop{position:absolute;right:22%;bottom:40%;font-size:clamp(50px,8vw,90px);opacity:0}
+.prop.go{animation:swing .35s ease-in forwards}
+@keyframes swing{0%{opacity:1;transform:translateX(0) rotate(40deg)}100%{opacity:1;transform:translateX(-30vw) rotate(-30deg)}}
+.shake{animation:shake .4s}
+@keyframes shake{0%,100%{transform:none}20%{transform:translate(-10px,4px)}40%{transform:translate(9px,-5px)}60%{transform:translate(-6px,3px)}80%{transform:translate(4px,-2px)}}
+.hit{transform:rotate(-22deg) translateX(-14px)!important}
+.zukko .tsukkomi{animation:zukko .7s forwards}
+@keyframes zukko{0%{transform:none}40%{transform:rotate(-80deg) translateY(10px)}100%{transform:rotate(-90deg) translate(-10px,14px)}}
+
+/* 札（えらぶところ） */
+.panel{display:flex;flex-direction:column;gap:10px;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+.group{background:var(--paper);border-radius:16px;padding:10px 12px 12px;box-shadow:0 5px 0 var(--wood)}
+.group h2{margin:0 0 8px;font-family:var(--f-display);font-weight:400;font-size:clamp(15px,1.8vw,19px);letter-spacing:.06em;display:flex;gap:8px;align-items:baseline}
+.group h2 small{font-family:var(--f-body);font-size:.75em;color:var(--muted);letter-spacing:0}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lines .choices{grid-template-columns:1fr}
+.c{font:inherit;font-size:clamp(15px,1.9vw,19px);text-align:left;color:var(--ink);background:#fff;border:3px solid var(--ink);border-radius:12px;
+  padding:9px 12px;min-height:48px;cursor:pointer;touch-action:manipulation;box-shadow:0 3px 0 var(--ink);transition:transform .08s}
+.c:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.c:focus-visible,.go-btn:focus-visible,.sub-btn:focus-visible{outline:3px solid var(--shu);outline-offset:2px}
+.c.sel{background:#ffe3a6;border-color:var(--shu);box-shadow:0 3px 0 var(--shu)}
+.c.right{background:#d9f5df;border-color:var(--ok);box-shadow:0 3px 0 var(--ok)}
+.c.wrong{opacity:.45}
+.act{display:flex;gap:8px;align-items:center}
+.act b{font-size:1.5em;line-height:1}
+.act span{display:flex;flex-direction:column}
+.act em{font-style:normal;font-size:.72em;color:var(--muted);font-weight:500}
+.go-btn{font-family:var(--f-display);font-weight:400;font-size:clamp(22px,3vw,30px);letter-spacing:.1em;color:var(--paper);background:var(--shu);border:4px solid var(--ink);
+  border-radius:16px;padding:12px;cursor:pointer;box-shadow:0 6px 0 var(--ink);touch-action:manipulation;width:100%}
+.go-btn:disabled{background:#c9a98a;color:#f3e6d2;cursor:default}
+.go-btn:not(:disabled):active{transform:translateY(4px);box-shadow:0 2px 0 var(--ink)}
+.sub-btn{font:inherit;font-size:16px;color:var(--ink);background:#fff;border:3px solid var(--ink);border-radius:12px;padding:10px 12px;cursor:pointer;box-shadow:0 3px 0 var(--ink);touch-action:manipulation;width:100%}
+.sub-btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.sub-btn.danger{color:var(--shu);border-color:var(--shu);box-shadow:0 3px 0 var(--shu)}
+.result{background:var(--paper);border-radius:16px;padding:12px 14px;box-shadow:0 5px 0 var(--wood);font-size:clamp(15px,1.8vw,18px);line-height:1.5}
+.result h3{margin:0 0 4px;font-family:var(--f-display);font-weight:400;font-size:1.4em}
+.result .pts{color:var(--shu);font-family:var(--f-display);font-weight:400}
+.save-chip{position:absolute;right:12px;bottom:10px;font:inherit;font-size:15px;background:var(--paper);border:3px solid var(--ink);border-radius:999px;padding:4px 12px;cursor:pointer;box-shadow:0 3px 0 var(--wood);z-index:2}
+
+/* 重ねて出す画面 */
+.overlay{position:fixed;inset:0;background:rgba(43,26,16,.72);display:grid;place-items:center;z-index:20;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));overflow:auto}
+.card{background:var(--paper);border:5px solid var(--ink);border-radius:22px;max-width:520px;width:100%;padding:22px 22px 20px;text-align:center;box-shadow:0 8px 0 var(--wood);max-height:100%;overflow:auto}
+.card h1{font-family:var(--f-display);font-weight:400;font-size:clamp(34px,6vw,52px);margin:0;color:var(--shu);-webkit-text-stroke:2px var(--ink);text-wrap:balance}
+.card-h{font-family:var(--f-display);font-weight:400;font-size:clamp(22px,3.4vw,30px);margin:0 0 6px}
+.card p{line-height:1.6;margin:10px 0}
+.card .small{font-size:14px;color:var(--muted);font-weight:500}
+.card .big{font-family:var(--f-display);font-weight:400;font-size:clamp(40px,8vw,64px);color:var(--shu)}
+.card .rank{font-family:var(--f-display);font-weight:400;font-size:1.6em}
+.new-rec{display:inline-block;background:var(--shu);color:var(--paper);border-radius:999px;padding:2px 12px;font-size:15px;margin-top:4px}
+.rules{text-align:left;font-size:15px;background:#fff;border-radius:12px;padding:8px 14px 8px 30px;border:2px dashed var(--muted);margin:10px 0}
+.rules li{margin:4px 0}
+.stats{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:10px 0;font-variant-numeric:tabular-nums}
+.stats div{background:#fff;border:2px solid var(--ink);border-radius:12px;padding:6px 12px;min-width:92px}
+.stats b{display:block;font-family:var(--f-display);font-weight:400;font-size:22px;color:var(--shu)}
+.stats small{font-size:12px;color:var(--muted)}
+.btn-col{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.text-in{font:inherit;font-size:20px;padding:8px 12px;border-radius:12px;border:3px solid var(--ink);width:100%;background:#fff;color:var(--ink);
+  -webkit-user-select:text;user-select:text;touch-action:auto}
+.err{color:var(--shu);min-height:22px;margin-top:6px}
+.who-list{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.who-list .sub-btn{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left}
+.who-list .sub-btn small{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}
+.status{background:#fff;border:2px solid var(--ink);border-radius:12px;padding:8px 12px;text-align:left;font-size:15px;line-height:1.5}
+.ver{font-size:12px;color:var(--muted);font-weight:500;margin-top:10px}
+hr.sep{border:0;border-top:2px dashed #d8c3a0;margin:14px 0}
+.upd-btn{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:95;font:inherit;font-size:16px;
+  background:#7ee06a;color:var(--ink);border:3px solid var(--ink);border-radius:999px;padding:8px 16px;box-shadow:0 3px 0 var(--ink);cursor:pointer;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:reduce){.bang.go,.burst.go i,.prop.go,.shake,.zukko .tsukkomi{animation-duration:.01s}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <section class="stage" id="stage" aria-label="ぶたい">
+    <div class="floor"></div>
+    <div class="mic"></div>
+    <div class="hud"><span id="round">1 / 10 本目</span><span class="combo" id="combo" hidden></span><span id="score">0 点</span></div>
+    <div class="bubble" id="bubble"><small>ボケ</small><span id="bokeText">…</span></div>
+    <div class="boke" id="boke">😜</div>
+    <div class="tsukkomi" id="me">😤</div>
+    <div class="prop" id="prop">👋</div>
+    <div class="fx"><div class="burst" id="burst"></div><div class="bang" id="bang">バシッ！</div></div>
+  </section>
+
+  <section class="panel">
+    <div class="group lines">
+      <h2>なんて言う？<small>ツッコミのセリフ</small></h2>
+      <div class="choices" id="lineChoices"></div>
+    </div>
+    <div class="group acts">
+      <h2>どうツッコむ？<small>ツッコミの動き</small></h2>
+      <div class="choices" id="actChoices"></div>
+    </div>
+    <button class="go-btn" id="goBtn" type="button" disabled>ツッコむ！</button>
+    <div class="result" id="result" hidden></div>
+  </section>
+</div>
+
+<!-- タイトル -->
+<div class="overlay" id="titleOv" hidden>
+  <div class="card">
+    <h1>なんでやねん道場</h1>
+    <p id="hello">ボケにツッコんで、スカッとしよう。</p>
+    <div class="stats">
+      <div><small>ベスト</small><b id="stBest">0</b></div>
+      <div><small>遊んだ回数</small><b id="stPlays">0</b></div>
+      <div><small>バシッ！の数</small><b id="stBashi">0</b></div>
+    </div>
+    <ul class="rules">
+      <li>「セリフ」と「動き」をひとつずつ選んで「ツッコむ！」</li>
+      <li>両方ぴったりなら <b style="color:var(--shu)">バシッ！</b> 300点。続けるとコンボで点がふえる</li>
+      <li>セリフだけ合っていたら 100点</li>
+    </ul>
+    <div class="btn-col">
+      <button class="go-btn" id="startBtn" type="button">はじめる（全10本）</button>
+      <button class="sub-btn" id="saveBtn1" type="button">💾 セーブ・プレイヤー</button>
+    </div>
+  </div>
+</div>
+
+<!-- 結果 -->
+<div class="overlay" id="endOv" hidden>
+  <div class="card">
+    <p style="margin:0">今日のけいこの結果</p>
+    <div class="big" id="endScore">0点</div>
+    <div id="newRec" hidden><span class="new-rec">新記録！</span></div>
+    <div class="rank" id="endRank"></div>
+    <p id="endNote"></p>
+    <div class="btn-col">
+      <button class="go-btn" id="againBtn" type="button">もう一回</button>
+      <button class="sub-btn" id="toTitleBtn" type="button">タイトルへ</button>
+    </div>
+  </div>
+</div>
+
+<!-- だれが遊ぶ？ -->
+<div class="overlay" id="whoOv" hidden>
+  <div class="card">
+    <h2 class="card-h">👤 だれが遊ぶ？</h2>
+    <p class="small" id="whoNote"></p>
+    <div class="who-list" id="whoList"></div>
+    <hr class="sep">
+    <p style="margin:0 0 6px">新しい人</p>
+    <input id="newName" class="text-in" maxlength="12" placeholder="名前を入れてね" autocomplete="off" autocorrect="off" spellcheck="false">
+    <div class="err" id="whoErr"></div>
+    <button class="go-btn" id="newBtn" type="button">この名前ではじめる</button>
+  </div>
+</div>
+
+<!-- どちらのデータで遊ぶ？ -->
+<div class="overlay" id="pickOv" hidden>
+  <div class="card">
+    <h2 class="card-h">☁️ どちらのデータで遊ぶ？</h2>
+    <p>クラウドに、このiPadより新しいセーブがあります。</p>
+    <div class="btn-col">
+      <button class="sub-btn" id="pickCloud" type="button"></button>
+      <button class="sub-btn" id="pickLocal" type="button"></button>
+    </div>
+  </div>
+</div>
+
+<!-- 💾 セーブ -->
+<div class="overlay" id="saveOv" hidden>
+  <div class="card">
+    <h2 class="card-h">💾 セーブ</h2>
+    <p id="saveWho" style="margin-top:0"></p>
+    <div class="status" id="saveStatus"></div>
+    <div class="btn-col" id="saveMain">
+      <button class="sub-btn" id="swapBtn" type="button">👤 プレイヤーをかえる</button>
+      <button class="sub-btn" id="delOpenBtn" type="button">🗑️ いらないセーブを消す</button>
+      <button class="sub-btn" id="famBtn" type="button">🔑 家族のあいことばを変える</button>
+      <button class="sub-btn" id="updBtn" type="button">🔄 ゲームを新しくする（セーブしてから読みなおす）</button>
+      <button class="go-btn" id="saveClose" type="button">とじる</button>
+    </div>
+    <div id="delBox" hidden>
+      <p style="margin-bottom:4px">どのセーブを消す？</p>
+      <p class="small" style="margin-top:0">今遊んでいる人のセーブは消せません。</p>
+      <div class="who-list" id="delList"></div>
+      <button class="sub-btn" id="delBack" type="button">もどる</button>
+    </div>
+    <div class="ver" id="ver"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+// fb-shim.js が読みこめなかったときは、このiPadだけにセーブする
+if(!window.TKCloud) window.TKCloud = { available:()=>false, famId:()=>Promise.resolve(null), changeFamily(){ location.reload(); } };
+
+// ========== ネタ帳 ==========
+// ツッコミの動き。合う場面を短くそえて、選ぶ手がかりにする
+const ACTS = {
+  hataku:  {icon:'👋', name:'頭をはたく', hint:'うっかりしたボケに'},
+  mune:    {icon:'🤚', name:'むねを手のこうでポン', hint:'ふつうのボケに'},
+  harisen: {icon:'🪭', name:'ハリセンでしばく', hint:'調子に乗った大ボケに'},
+  zukko:   {icon:'🤸', name:'ずっこける', hint:'あきれて力がぬけるボケに'}
+};
+// boke（ボケ）、right（正しいセリフ）、wrong（ほかの答え）、act（合う動き）
+// 文字は小学4年生までに習う漢字だけ。それ以外はひらがなにする
+const NETA = [
+  {boke:'寒いから、れいぞうこに入って温まってきたわ。', right:'れいぞうこは冷やすとこや！', wrong:['何度にしてたん？','ええな、ぼくも入りたい','電気代もったいないで'], act:'hataku'},
+  {boke:'好きな食べ物はカレー。とくに、ルーとごはんをぬいたやつ。', right:'それただのお皿や！', wrong:['通やなあ','スプーンは何本いる？','からいのが好きなん？'], act:'mune'},
+  {boke:'お金をためるのが好きやねん。毎日10円ずつ使ってる。', right:'それへってるやないか！', wrong:['えらいなあ','もう何年目？','ぼくもやろかな'], act:'hataku'},
+  {boke:'ぼく、ニワトリより早起きやで。夕方6時に起きる。', right:'めっちゃねぼうやないか！', wrong:['体にええなあ','目ざまし何こ？','朝ごはん何食べるん？'], act:'zukko'},
+  {boke:'このあいだ世界一周してきてん。家のまわりを。', right:'それただの散歩や！', wrong:['何日かかったん？','おみやげは？','つかれてへん？'], act:'mune'},
+  {boke:'きのう全力でサボったら、めっちゃつかれたわ。', right:'サボりに全力出すな！', wrong:['ゆっくり休みや','何時間サボったん？','ええあせかいたな'], act:'hataku'},
+  {boke:'ぼく、しんかんせんより速く走れるで。しんかんせんが止まってたら。', right:'そらだれでも勝てるわ！', wrong:['すごい足やな','オリンピック出たら？','何キロ出るん？'], act:'harisen'},
+  {boke:'ダイエット始めてん。ケーキを毎日3こから5こに。', right:'ふえとるやないか！', wrong:['がんばってるなあ','何キロやせたん？','ケーキは何味？'], act:'harisen'},
+  {boke:'うちゅうひこうしになるゆめ、ついにかなえたで。ゆめの中で。', right:'ねてただけやないか！', wrong:['おめでとう！','月には行けた？','練習きつかった？'], act:'zukko'},
+  {boke:'泳ぐのとくいやねん。陸の上やったら。', right:'それ泳いでへんわ！', wrong:['何メートルいける？','クロールが好き？','水着はどこの？'], act:'zukko'},
+  {boke:'テスト100点やったで。10回分を足したら。', right:'1回10点やないか！', wrong:['天才やな','何の科目？','家の人にほめられた？'], act:'harisen'},
+  {boke:'かさを持ってきたで。晴れてるから家に置いてきたけど。', right:'持ってきてへんやないか！', wrong:['用意がええなあ','何色のかさ？','おりたたみ？'], act:'mune'},
+  {boke:'うちの犬、すごいねん。ニャーって鳴くねん。', right:'それネコやないか！', wrong:['かしこいなあ','何才なん？','名前は？'], act:'zukko'},
+  {boke:'毎朝ジョギングしてるで。車に乗って。', right:'それドライブや！', wrong:['えらいなあ','何キロ走るん？','朝は気持ちええよな'], act:'harisen'}
+];
+const ROUNDS = 10;
+
+// ========== セーブ（説明書 第5章と同じしくみ） ==========
+const LS = 'tsukkomi', LS_SLOT = 'tsukkomi_slot', LS_NAME = 'tsukkomi_slotname', LS_S = 'tsukkomi_s_', SS_READ = 'tsukkomi_read';
+const MAX_JSON = 240000;
+const lsGet = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const lsSet = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+const lsDel = k => { try{ localStorage.removeItem(k); }catch(e){} };
+const blank = () => ({ v:1, best:0, plays:0, bashi:0, last:[], savedAt:0 });
+const parse = j => { try{ const o = JSON.parse(j); return (o && typeof o === 'object') ? Object.assign(blank(), o) : null; }catch(e){ return null; } };
+
+let save = blank(), slot = null, pname = null, fam = null;
+let dirty = false, lastSent = null, timer = null;
+let status = { kind:'local', at:0 };
+
+function fmt(t){
+  if(!t) return '';
+  const d = new Date(t);
+  return (d.getMonth()+1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+function setStatus(kind, at){ status = { kind, at: at || Date.now() }; renderStatus(); }
+function statusText(){
+  if(!fam) return '📱 このiPadの中だけにセーブしています（あいことばなし）';
+  switch(status.kind){
+    case 'ok':   return '✅ クラウドにセーブずみ（' + fmt(status.at) + '）';
+    case 'wait': return '⏳ ネットにつながらないので、あとでもう一度セーブします';
+    case 'big':  return '⚠️ データが大きすぎて、クラウドに送れません';
+    case 'pend': return '💾 このiPadにセーブずみ。クラウドへは少しあとで送ります';
+    default:     return '☁️ クラウドにつないでいます…';
+  }
+}
+function renderStatus(){ const el = $('saveStatus'); if(el) el.textContent = statusText(); }
+
+// 何か変わったら：このiPadにすぐ書く → クラウドへは15秒まとめて送る
+function persist(){
+  save.savedAt = Date.now();
+  const j = JSON.stringify(save);
+  lsSet(LS, j);
+  if(slot) lsSet(LS_S + slot, JSON.stringify({ name:pname, json:j, savedAt:save.savedAt }));
+  dirty = true;
+  if(fam) setStatus('pend');
+  if(!timer) timer = setTimeout(() => { timer = null; flush(); }, 15000);
+}
+async function flush(){
+  if(timer){ clearTimeout(timer); timer = null; }
+  if(!fam || !slot || !dirty) return true;
+  const j = lsGet(LS) || JSON.stringify(save);
+  if(j.length > MAX_JSON){ setStatus('big'); return false; }
+  if(j === lastSent){ dirty = false; return true; }
+  try{
+    await TKCloud.set(slot, { json:j, savedAt:save.savedAt, name:pname, v:1 });
+    lastSent = j; dirty = false; setStatus('ok', save.savedAt);
+    return true;
+  }catch(e){
+    console.warn('cloud save failed', e); setStatus('wait');
+    if(!timer) timer = setTimeout(() => { timer = null; flush(); }, 15000);
+    return false;
+  }
+}
+// iPadでアプリを閉じる・切りかえる瞬間はすぐ送る
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') flush(); });
+window.addEventListener('pagehide', () => { flush(); });
+
+function useData(o, fromCloudJson){
+  save = Object.assign(blank(), o);
+  const j = JSON.stringify(save);
+  lsSet(LS, j);
+  if(slot) lsSet(LS_S + slot, JSON.stringify({ name:pname, json:j, savedAt:save.savedAt }));
+  if(fromCloudJson){ lastSent = fromCloudJson; dirty = false; }
+}
+function newSlotId(){ return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function localCopies(){
+  const out = [];
+  try{
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.indexOf(LS_S) === 0){
+        try{ const o = JSON.parse(localStorage.getItem(k)); if(o) out.push(Object.assign({}, o, { id:k.slice(LS_S.length) })); }catch(e){}
+      }
+    }
+  }catch(e){}
+  return out;
+}
+async function allSlots(){
+  const map = {};
+  localCopies().forEach(s => { map[s.id] = s; });
+  if(fam){
+    try{
+      const cl = await TKCloud.list();
+      cl.forEach(s => { if(!map[s.id] || (s.savedAt||0) > (map[s.id].savedAt||0)) map[s.id] = Object.assign({ cloud:true }, s); });
+    }catch(e){ setStatus('wait'); }
+  }
+  return Object.values(map).sort((a, b) => (b.savedAt||0) - (a.savedAt||0));
+}
+
+// ---- だれが遊ぶ？ ----
+// このiPadの写しをすぐ出して、クラウドの一覧がとどいたら入れかえる
+function choosePlayer(){
+  return new Promise(res => {
+    const ov = $('whoOv'), list = $('whoList'), err = $('whoErr'), inp = $('newName');
+    let slots = localCopies().sort((a, b) => (b.savedAt||0) - (a.savedAt||0)), done = false;
+    err.textContent = ''; inp.value = '';
+    $('whoNote').textContent = fam ? '家族のセーブから選ぶか、新しい人をつくってね。' : 'このiPadのセーブから選ぶか、新しい人をつくってね。';
+    function draw(loading){
+      list.innerHTML = '';
+      slots.forEach(s => {
+        const d = parse(s.json) || blank();
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'sub-btn';
+        b.innerHTML = '<span></span><small>ベスト ' + d.best + '点・' + fmt(s.savedAt) + '</small>';
+        b.firstChild.textContent = s.name || '（名前なし）';
+        b.onclick = () => {
+          if(done) return; done = true;
+          slot = s.id; pname = s.name || 'ななし';
+          lsSet(LS_SLOT, slot); lsSet(LS_NAME, pname);
+          useData(d, s.cloud ? s.json : null);
+          if(!s.cloud && fam){ dirty = true; flush(); }
+          ov.hidden = true; res();
+        };
+        list.appendChild(b);
+      });
+      if(loading){ const p = document.createElement('p'); p.className = 'small'; p.textContent = '☁️ クラウドのセーブを読みこみ中…'; list.appendChild(p); }
+      else if(!slots.length) list.innerHTML = '<p class="small">まだだれもいません。</p>';
+    }
+    $('newBtn').onclick = () => {
+      if(done) return;
+      const name = String(inp.value || '').normalize('NFKC').trim();
+      if(!name){ err.textContent = '名前を入れてね'; return; }
+      if(slots.some(s => (s.name || '') === name)){ err.textContent = 'その名前はもういるよ。上から選んでね'; return; }
+      done = true;
+      slot = newSlotId(); pname = name;
+      lsSet(LS_SLOT, slot); lsSet(LS_NAME, pname);
+      save = blank(); persist(); flush();
+      ov.hidden = true; res();
+    };
+    draw(!!fam);
+    ov.hidden = false;
+    if(fam) allSlots().then(all => { if(!done){ slots = all; draw(false); } });
+  });
+}
+['keydown','keyup','keypress'].forEach(t => $('newName').addEventListener(t, e => e.stopPropagation()));
+
+// ---- 起動したとき：クラウドとこのiPad、新しいほうを使う ----
+function askWhich(cloudData, cloudAt){
+  return new Promise(res => {
+    const ov = $('pickOv');
+    $('pickCloud').textContent = '☁️ クラウド（ベスト ' + cloudData.best + '点・' + cloudData.plays + '回・' + fmt(cloudAt) + '）';
+    $('pickLocal').textContent = '📱 このiPad（ベスト ' + save.best + '点・' + save.plays + '回・' + fmt(save.savedAt) + '）';
+    $('pickCloud').onclick = () => { ov.hidden = true; res('cloud'); };
+    $('pickLocal').onclick = () => { ov.hidden = true; res('local'); };
+    ov.hidden = false;
+  });
+}
+async function syncOnBoot(){
+  if(!fam) return;
+  let c = null;
+  try{ c = await TKCloud.get(slot); }catch(e){ setStatus('wait'); return; }
+  const localAt = save.savedAt || 0;
+  if(c && c.json && (c.savedAt||0) > localAt + 1000){
+    const cd = parse(c.json); if(!cd) return;
+    let seen = null; try{ seen = sessionStorage.getItem(SS_READ); }catch(e){}
+    const localEmpty = !save.plays && !localAt;
+    if(localEmpty || seen === String(c.savedAt)){ useData(cd, c.json); setStatus('ok', c.savedAt); return; }
+    const pick = await askWhich(cd, c.savedAt);
+    try{ sessionStorage.setItem(SS_READ, String(c.savedAt)); }catch(e){}
+    if(pick === 'cloud'){ useData(cd, c.json); setStatus('ok', c.savedAt); }
+    else{ dirty = true; await flush(); }
+  }else if(c && c.json === lsGet(LS)){
+    lastSent = c.json; setStatus('ok', c.savedAt);
+  }else{
+    dirty = true; await flush();
+  }
+}
+async function boot(){
+  fam = await TKCloud.famId().catch(() => null);
+  if(fam) setStatus('conn');
+  slot = lsGet(LS_SLOT); pname = lsGet(LS_NAME);
+  if(!slot){
+    await choosePlayer();
+  }else{
+    save = parse(lsGet(LS)) || blank();
+    await syncOnBoot();
+  }
+  showTitle();
+}
+
+// ---- 💾 の画面 ----
+function openSave(){
+  $('saveWho').textContent = '今遊んでいる人：' + (pname || '');
+  $('saveMain').hidden = false; $('delBox').hidden = true;
+  $('famBtn').hidden = !TKCloud.available();
+  $('ver').textContent = 'バージョン ' + (window.TKUpdate ? TKUpdate.build : '');
+  renderStatus();
+  $('saveOv').hidden = false;
+}
+$('saveBtn1').onclick = openSave;
+$('saveClose').onclick = () => { $('saveOv').hidden = true; };
+$('swapBtn').onclick = async () => {
+  $('swapBtn').disabled = true; $('swapBtn').textContent = '⏳ セーブしています…';
+  await flush();
+  $('swapBtn').disabled = false; $('swapBtn').textContent = '👤 プレイヤーをかえる';
+  lsDel(LS_SLOT); lsDel(LS_NAME); lsDel(LS);
+  slot = pname = null; save = blank(); lastSent = null; dirty = false;
+  $('saveOv').hidden = true; $('titleOv').hidden = true;
+  await choosePlayer();
+  showTitle();
+};
+$('famBtn').onclick = async () => { await flush(); TKCloud.changeFamily(); };
+$('updBtn').onclick = () => { if(window.TKUpdate) TKUpdate.now(); else location.reload(); };
+$('delBack').onclick = () => { $('saveMain').hidden = false; $('delBox').hidden = true; };
+$('delOpenBtn').onclick = async () => {
+  $('saveMain').hidden = true; $('delBox').hidden = false;
+  const list = $('delList'); list.innerHTML = '<p class="small">読みこみ中…</p>';
+  const slots = (await allSlots()).filter(s => s.id !== slot);
+  list.innerHTML = '';
+  if(!slots.length){ list.innerHTML = '<p class="small">消せるセーブはありません。</p>'; return; }
+  slots.forEach(s => {
+    const d = parse(s.json) || blank();
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'sub-btn';
+    b.innerHTML = '<span></span><small>ベスト ' + d.best + '点</small>';
+    b.firstChild.textContent = '🗑️ ' + (s.name || '（名前なし）');
+    let armed = false;
+    b.onclick = async () => {
+      if(!armed){ armed = true; b.classList.add('danger'); b.firstChild.textContent = '本当に「' + (s.name || '') + '」を消す？もう一回タップ'; return; }
+      b.disabled = true;
+      lsDel(LS_S + s.id);
+      if(fam){ try{ await TKCloud.del(s.id); }catch(e){ b.firstChild.textContent = '⏳ クラウドから消せませんでした。あとでもう一度'; b.disabled = false; armed = false; return; } }
+      b.remove();
+      if(!list.children.length) list.innerHTML = '<p class="small">消せるセーブはありません。</p>';
+    };
+    list.appendChild(b);
+  });
+};
+
+// ========== ゲーム ==========
+let deck = [], idx = 0, score = 0, combo = 0, perfect = 0, pickLine = null, pickAct = null, locked = false;
+const shuffle = a => { a = a.slice(); for(let i = a.length-1; i > 0; i--){ const j = Math.random()*(i+1)|0; [a[i],a[j]] = [a[j],a[i]]; } return a; };
+
+// 音（タップのあとにだけ鳴らす）
+let ac = null;
+function audio(){ if(!ac){ try{ ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(ac && ac.state === 'suspended') ac.resume(); return ac; }
+function slap(strong){
+  const a = audio(); if(!a) return;
+  const t = a.currentTime, len = strong ? .22 : .12;
+  const buf = a.createBuffer(1, Math.floor(a.sampleRate*len), a.sampleRate), d = buf.getChannelData(0);
+  for(let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/d.length, strong ? 3 : 5);
+  const src = a.createBufferSource(); src.buffer = buf;
+  const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = strong ? 1800 : 1200; f.Q.value = .7;
+  const g = a.createGain(); g.gain.value = strong ? 1.4 : .7;
+  src.connect(f); f.connect(g); g.connect(a.destination); src.start(t);
+  const o = a.createOscillator(), og = a.createGain();
+  o.frequency.setValueAtTime(strong ? 160 : 120, t); o.frequency.exponentialRampToValueAtTime(50, t+.15);
+  og.gain.setValueAtTime(strong ? .8 : .4, t); og.gain.exponentialRampToValueAtTime(.001, t+.18);
+  o.connect(og); og.connect(a.destination); o.start(t); o.stop(t+.2);
+}
+function boo(){
+  const a = audio(); if(!a) return; const t = a.currentTime;
+  const o = a.createOscillator(), g = a.createGain(); o.type = 'triangle';
+  o.frequency.setValueAtTime(330, t); o.frequency.linearRampToValueAtTime(180, t+.5);
+  g.gain.setValueAtTime(.25, t); g.gain.linearRampToValueAtTime(.001, t+.55);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+.6);
+}
+
+function hud(){
+  $('round').textContent = (idx+1) + ' / ' + ROUNDS + ' 本目';
+  $('score').textContent = score + ' 点';
+  const c = $('combo'); c.hidden = combo < 2; c.textContent = combo + ' コンボ！';
+}
+function button(html, onTap){
+  const b = document.createElement('button'); b.className = 'c'; b.type = 'button'; b.innerHTML = html;
+  b.addEventListener('click', onTap); return b;
+}
+function showRound(){
+  const n = deck[idx]; locked = false; pickLine = pickAct = null;
+  $('bokeText').textContent = n.boke;
+  $('boke').className = 'boke'; $('stage').classList.remove('zukko');
+  $('bang').className = 'bang'; $('result').hidden = true;
+  const goBtn = $('goBtn'); goBtn.hidden = false; goBtn.disabled = true;
+  const lc = $('lineChoices'); lc.innerHTML = '';
+  shuffle([n.right, ...n.wrong]).forEach(t => {
+    const b = button('', () => { if(locked) return; pickLine = t; mark(lc, b); ready(); });
+    b.textContent = '「' + t + '」'; b.dataset.v = t; lc.appendChild(b);
+  });
+  const acEl = $('actChoices'); acEl.innerHTML = '';
+  Object.keys(ACTS).forEach(k => {
+    const a = ACTS[k];
+    const b = button('<div class="act"><b>' + a.icon + '</b><span>' + a.name + '<em>' + a.hint + '</em></span></div>', () => { if(locked) return; pickAct = k; mark(acEl, b); ready(); });
+    b.dataset.v = k; acEl.appendChild(b);
+  });
+  hud();
+}
+function mark(box, b){ box.querySelectorAll('.c').forEach(x => x.classList.toggle('sel', x === b)); }
+function ready(){ $('goBtn').disabled = !(pickLine && pickAct); }
+function burst(){
+  const el = $('burst'); el.className = 'burst'; el.innerHTML = '';
+  for(let i = 0; i < 14; i++){ const r = document.createElement('i'); r.style.setProperty('--a', (i*360/14) + 'deg'); el.appendChild(r); }
+  void el.offsetWidth; el.className = 'burst go';
+}
+function tsukkomu(){
+  if(locked || !pickLine || !pickAct) return; locked = true;
+  const n = deck[idx], lineOk = pickLine === n.right, actOk = pickAct === n.act;
+  const stage = $('stage'), prop = $('prop'), bang = $('bang');
+  $('goBtn').hidden = true;
+  $('lineChoices').querySelectorAll('.c').forEach(b => b.classList.add(b.dataset.v === n.right ? 'right' : 'wrong'));
+  $('actChoices').querySelectorAll('.c').forEach(b => b.classList.add(b.dataset.v === n.act ? 'right' : 'wrong'));
+
+  let pts = 0, title, note;
+  if(lineOk && actOk){
+    combo++; perfect++; pts = 300 + (combo-1)*50;
+    title = 'バシッ！'; note = 'セリフも動きもぴったり。' + (combo > 1 ? combo + 'コンボで +' + ((combo-1)*50) + '点！' : '');
+  }else if(lineOk){
+    combo = 0; pts = 100;
+    title = 'ペシッ…'; note = 'セリフはばっちり。動きは「' + ACTS[n.act].name + '」のほうが合うボケでした。';
+  }else{
+    combo = 0;
+    title = 'スベった…'; note = 'ここは「' + n.right + '」と「' + ACTS[n.act].name + '」がキマりました。';
+  }
+  score += pts;
+
+  if(pickAct === 'zukko'){
+    stage.classList.add('zukko');
+  }else{
+    prop.textContent = ACTS[pickAct].icon; prop.className = 'prop'; void prop.offsetWidth; prop.className = 'prop go';
+  }
+  setTimeout(() => {
+    prop.className = 'prop';
+    if(lineOk){
+      slap(actOk);
+      $('boke').classList.add('hit');
+      stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake');
+      bang.textContent = actOk ? 'バシッ！' : 'ペシッ';
+      bang.className = 'bang' + (actOk ? '' : ' small'); void bang.offsetWidth; bang.classList.add('go');
+      if(actOk){ burst(); try{ navigator.vibrate && navigator.vibrate(60); }catch(e){} }
+    }else{
+      boo(); $('bokeText').textContent = '……（ボケがふしぎそうにこっちを見ている）';
+    }
+    const r = $('result'); r.hidden = false;
+    r.innerHTML = '<h3>' + title + ' <span class="pts">+' + pts + '点</span></h3><div></div>';
+    r.lastChild.textContent = note;
+    const next = button(idx+1 < ROUNDS ? '次のボケへ ▶' : '結果を見る ▶', nextRound);
+    next.className = 'go-btn'; next.style.cssText = 'margin-top:10px;font-size:20px';
+    r.appendChild(next); hud();
+  }, pickAct === 'zukko' ? 380 : 330);
+}
+function nextRound(){
+  idx++;
+  if(idx >= ROUNDS) return finish();
+  showRound();
+}
+function finish(){
+  const rec = score > save.best;
+  save.plays++; save.bashi += perfect; save.best = Math.max(save.best, score);
+  save.last = [score].concat(save.last || []).slice(0, 10);
+  persist();
+  $('endScore').textContent = score + '点';
+  $('newRec').hidden = !rec;
+  let rank;
+  if(perfect >= 9) rank = 'ツッコミ名人';
+  else if(perfect >= 6) rank = '人気ツッコミ';
+  else if(perfect >= 3) rank = '新人ツッコミ';
+  else rank = '見習いツッコミ';
+  $('endRank').textContent = rank;
+  $('endNote').textContent = '10本中 ' + perfect + '本 バシッ！とキマりました。';
+  $('endOv').hidden = false;
+}
+function showTitle(){
+  $('hello').textContent = 'ようこそ、' + (pname || '') + 'さん。ボケにツッコんで、スカッとしよう。';
+  $('stBest').textContent = save.best; $('stPlays').textContent = save.plays; $('stBashi').textContent = save.bashi;
+  $('endOv').hidden = true; $('titleOv').hidden = false;
+}
+function start(){
+  audio();
+  deck = shuffle(NETA).slice(0, ROUNDS); idx = 0; score = 0; combo = 0; perfect = 0;
+  $('titleOv').hidden = true; $('endOv').hidden = true;
+  showRound();
+}
+$('goBtn').addEventListener('click', tsukkomu);
+$('startBtn').addEventListener('click', start);
+$('againBtn').addEventListener('click', start);
+$('toTitleBtn').addEventListener('click', showTitle);
+
+// うしろの舞台が空にならないように、1本目を見せておく
+deck = shuffle(NETA).slice(0, ROUNDS); showRound();
+boot();
+})();
+</script>
+</body>
+</html>
