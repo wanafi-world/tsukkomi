@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>なんでやねん道場</title>
-<meta name="tsukkomi-build" content="20261126-1031">
+<meta name="tsukkomi-build" content="20261126-1133">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -17,8 +17,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
 <script src="lib/firebase-app-compat.js"></script>
 <script src="lib/firebase-database-compat.js"></script>
-<script src="firebase-config.js?v=20261126-1031"></script>
-<script src="fb-shim.js?v=20261126-1031"></script>
+<script src="firebase-config.js?v=20261126-1133"></script>
+<script src="fb-shim.js?v=20261126-1133"></script>
 <style>
 /* 漫才の舞台。左に金びょうぶとセンターマイクの前に立つボケ、右にツッコミを選ぶ札。たて画面では上下に積む */
 :root{
@@ -46,21 +46,50 @@ button{font-family:inherit}
    radial-gradient(ellipse at 50% 30%,#f6d27a 0%,var(--gold) 45%,var(--gold-deep) 100%);
   box-shadow:inset 0 0 0 4px var(--wood),0 8px 0 var(--wood);}
 .floor{position:absolute;left:0;right:0;bottom:0;height:22%;background:repeating-linear-gradient(90deg,var(--wood) 0 60px,#8a5530 60px 62px);border-top:4px solid var(--wood-dark)}
-.hud{position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:var(--f-display);font-size:clamp(14px,2vw,20px)}
+.hud{position:absolute;z-index:4;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:var(--f-display);font-size:clamp(14px,2vw,20px)}
 .hud span{background:var(--paper);padding:4px 12px;border-radius:999px;box-shadow:0 3px 0 var(--wood)}
 .hud .combo{color:var(--shu)}
-.mic{position:absolute;left:50%;bottom:22%;transform:translateX(-50%);width:6px;height:38%;background:linear-gradient(#bbb,#777);border-radius:3px}
+.mic{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);width:6px;height:38%;background:linear-gradient(#bbb,#777);border-radius:3px}
 .mic::before{content:"";position:absolute;top:-22px;left:50%;transform:translateX(-50%);width:22px;height:30px;border-radius:11px;background:radial-gradient(circle at 40% 35%,#eee,#666)}
 .mic::after{content:"";position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:60px;height:10px;border-radius:50%;background:#444}
-.boke{position:absolute;left:18%;bottom:16%;font-size:clamp(70px,11vw,130px);line-height:1;transform-origin:50% 100%;transition:transform .2s}
-.tsukkomi{position:absolute;right:14%;bottom:16%;font-size:clamp(60px,9vw,110px);line-height:1;transform-origin:50% 100%}
-.bubble{position:absolute;left:6%;right:6%;top:15%;background:var(--paper);border:4px solid var(--ink);border-radius:20px;padding:14px 18px;
+/* キャラ。足もとを床の線にそろえる。床より下は見えない（かかと落としで、うまる） */
+.pit{position:absolute;left:0;right:0;top:0;overflow:hidden;pointer-events:none}
+.actor{position:absolute;width:0;height:0}
+.actor .body{position:absolute;transform-origin:50% 60%}
+.actor img{width:100%;height:100%;display:block}
+.actor.flip img{transform:scaleX(-1)}
+.space{position:absolute;inset:0;opacity:0;pointer-events:none;overflow:hidden;
+  background:radial-gradient(ellipse at 30% 30%,#2b3d82 0%,#0c1236 55%,#03040d 100%)}
+.space::before{content:"";position:absolute;inset:0;background-image:
+  radial-gradient(2px 2px at 8% 14%,#fff 50%,transparent 51%),radial-gradient(2px 2px at 22% 62%,#fff 50%,transparent 51%),
+  radial-gradient(3px 3px at 35% 28%,#fff8c0 50%,transparent 51%),radial-gradient(2px 2px at 48% 80%,#fff 50%,transparent 51%),
+  radial-gradient(2px 2px at 61% 12%,#fff 50%,transparent 51%),radial-gradient(3px 3px at 74% 44%,#cfe8ff 50%,transparent 51%),
+  radial-gradient(2px 2px at 88% 22%,#fff 50%,transparent 51%),radial-gradient(2px 2px at 92% 70%,#fff 50%,transparent 51%),
+  radial-gradient(2px 2px at 15% 88%,#fff 50%,transparent 51%),radial-gradient(3px 3px at 56% 52%,#fff 50%,transparent 51%),
+  radial-gradient(2px 2px at 30% 45%,#fff 50%,transparent 51%),radial-gradient(2px 2px at 80% 90%,#fff 50%,transparent 51%)}
+.space .earth{position:absolute;right:-8%;bottom:-14%;font-size:min(46vw,46vh);line-height:1}
+.space img{position:absolute;left:0;top:0}
+.beam{position:absolute;opacity:0;border-radius:999px;transform-origin:100% 50%;pointer-events:none;
+  background:linear-gradient(90deg,rgba(140,230,255,.2),#8fe8ff 25%,#fff 55%,#d9fbff);box-shadow:0 0 26px 10px rgba(120,220,255,.85)}
+.ball{position:absolute;border-radius:50%;opacity:0;pointer-events:none;background:radial-gradient(circle,#fff 0 30%,#9cecff 55%,rgba(80,200,255,0) 72%)}
+.star{position:absolute;width:90px;height:90px;margin:-45px 0 0 -45px;opacity:0;pointer-events:none;
+  background:radial-gradient(circle,#fff 0 20%,#fffbd0 35%,rgba(255,250,200,0) 60%);
+  clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%)}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.kira{position:absolute;font-family:var(--f-display);color:#fff6a8;-webkit-text-stroke:5px var(--ink);paint-order:stroke fill;
+  font-size:clamp(28px,5vw,50px);opacity:0;white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%)}
+.mound{position:absolute;opacity:0;pointer-events:none;transform-origin:50% 100%;border-radius:50% 50% 12% 12%/90% 90% 10% 10%;
+  background:radial-gradient(ellipse at 50% 35%,#a8733f,#6b4220 75%);box-shadow:inset 0 -6px 0 rgba(0,0,0,.2)}
+.bubble{position:absolute;left:6%;right:6%;top:8%;z-index:3;background:var(--paper);border:4px solid var(--ink);border-radius:20px;padding:14px 18px;
   font-size:clamp(17px,2.4vw,26px);line-height:1.45;text-wrap:balance;box-shadow:0 5px 0 rgba(0,0,0,.25)}
-.bubble::after{content:"";position:absolute;left:18%;bottom:-22px;border:12px solid transparent;border-top:14px solid var(--ink)}
+.bubble::after{content:"";position:absolute;left:22%;bottom:-26px;border:12px solid transparent;border-top:14px solid var(--ink)}
+.bubble.tsu{border-color:var(--shu)}
+.bubble.tsu::after{left:auto;right:22%;border-top-color:var(--shu)}
+.bubble.tsu small{color:var(--shu)}
 .bubble small{display:block;font-size:.6em;color:var(--muted);letter-spacing:.08em;margin-bottom:2px}
 
 /* 効果 */
-.fx{position:absolute;inset:0;pointer-events:none;display:grid;place-items:center}
+.fx{position:absolute;inset:0;pointer-events:none;display:grid;place-items:center;z-index:5}
 .bang{font-family:var(--f-display);font-size:clamp(70px,13vw,160px);color:var(--shu);-webkit-text-stroke:6px var(--paper);paint-order:stroke fill;transform:rotate(-8deg) scale(0);opacity:0}
 .bang.small{font-size:clamp(44px,8vw,96px)}
 .bang.go{animation:bang .9s cubic-bezier(.2,1.6,.4,1) forwards}
@@ -69,14 +98,8 @@ button{font-family:inherit}
 .burst i{position:absolute;width:14px;height:4px;background:var(--shu);border-radius:2px;left:0;top:0;opacity:0}
 .burst.go i{animation:ray .6s ease-out forwards}
 @keyframes ray{0%{opacity:1;transform:rotate(var(--a)) translateX(10px)}100%{opacity:0;transform:rotate(var(--a)) translateX(180px) scaleX(2)}}
-.prop{position:absolute;right:22%;bottom:40%;font-size:clamp(50px,8vw,90px);opacity:0}
-.prop.go{animation:swing .35s ease-in forwards}
-@keyframes swing{0%{opacity:1;transform:translateX(0) rotate(40deg)}100%{opacity:1;transform:translateX(-30vw) rotate(-30deg)}}
 .shake{animation:shake .4s}
 @keyframes shake{0%,100%{transform:none}20%{transform:translate(-10px,4px)}40%{transform:translate(9px,-5px)}60%{transform:translate(-6px,3px)}80%{transform:translate(4px,-2px)}}
-.hit{transform:rotate(-22deg) translateX(-14px)!important}
-.zukko .tsukkomi{animation:zukko .7s forwards}
-@keyframes zukko{0%{transform:none}40%{transform:rotate(-80deg) translateY(10px)}100%{transform:rotate(-90deg) translate(-10px,14px)}}
 
 /* 札（えらぶところ） */
 .panel{display:flex;flex-direction:column;gap:10px;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
@@ -137,7 +160,23 @@ button{font-family:inherit}
 hr.sep{border:0;border-top:2px dashed #d8c3a0;margin:14px 0}
 .upd-btn{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:95;font:inherit;font-size:16px;
   background:#7ee06a;color:var(--ink);border:3px solid var(--ink);border-radius:999px;padding:8px 16px;box-shadow:0 3px 0 var(--ink);cursor:pointer;max-width:calc(100% - 32px)}
-@media (prefers-reduced-motion:reduce){.bang.go,.burst.go i,.prop.go,.shake,.zukko .tsukkomi{animation-duration:.01s}}
+/* キャラえらび */
+.card.wide{max-width:760px}
+.role{margin:12px 0 6px;font-family:var(--f-display);font-weight:400;text-align:left;font-size:18px}
+.role small{font-family:var(--f-body);font-size:.75em;color:var(--muted)}
+.char-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media (min-width:700px){.char-grid{grid-template-columns:repeat(8,1fr);gap:6px}.ch img{height:clamp(80px,15vh,130px)}}
+.ch{font:inherit;font-size:14px;color:var(--ink);background:#fff;border:3px solid var(--ink);border-radius:12px;padding:4px 2px 6px;cursor:pointer;
+  box-shadow:0 3px 0 var(--ink);display:flex;flex-direction:column;align-items:center;gap:2px;touch-action:manipulation;min-width:0}
+.ch img{height:clamp(64px,12vh,118px);width:100%;object-fit:contain}
+.ch.sel{background:#ffe3a6;border-color:var(--shu);box-shadow:0 3px 0 var(--shu)}
+.ch:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.pair{display:flex;justify-content:center;gap:18px;align-items:flex-end;margin:6px 0 0}
+.pair figure{margin:0;display:flex;flex-direction:column;align-items:center;font-size:14px;gap:2px}
+.pair figure small{color:var(--muted);font-weight:500;font-size:12px}
+.pair img{height:96px;width:80px;object-fit:contain}
+.pair .vs{font-family:var(--f-display);color:var(--shu);font-size:20px;padding-bottom:40px}
+@media (prefers-reduced-motion:reduce){.bang.go,.burst.go i,.shake{animation-duration:.01s}}
 </style>
 </head>
 <body>
@@ -147,10 +186,16 @@ hr.sep{border:0;border-top:2px dashed #d8c3a0;margin:14px 0}
     <div class="floor"></div>
     <div class="mic"></div>
     <div class="hud"><span id="round">1 / 10 本目</span><span class="combo" id="combo" hidden></span><span id="score">0 点</span></div>
-    <div class="bubble" id="bubble"><small>ボケ</small><span id="bokeText">…</span></div>
-    <div class="boke" id="boke">😜</div>
-    <div class="tsukkomi" id="me">😤</div>
-    <div class="prop" id="prop">👋</div>
+    <div class="bubble" id="bubble"><small id="who">ボケ</small><span id="bokeText">…</span></div>
+    <div class="pit" id="pit">
+      <div class="actor" id="bokeA"><div class="body"><img alt=""></div></div>
+      <div class="actor flip" id="tsuA"><div class="body"><img alt=""></div></div>
+    </div>
+    <div class="mound" id="mound"></div>
+    <div class="beam" id="beam"></div><div class="ball" id="ball"></div>
+    <div class="space" id="space"><div class="earth">🌏</div><img id="spaceImg" alt=""></div>
+    <div class="star" id="star"></div><div class="kira" id="kira"></div>
+    <div class="flash" id="flash"></div>
     <div class="fx"><div class="burst" id="burst"></div><div class="bang" id="bang">バシッ！</div></div>
   </section>
 
@@ -178,15 +223,30 @@ hr.sep{border:0;border-top:2px dashed #d8c3a0;margin:14px 0}
       <div><small>遊んだ回数</small><b id="stPlays">0</b></div>
       <div><small>バシッ！の数</small><b id="stBashi">0</b></div>
     </div>
+    <div class="pair" id="pairView"></div>
     <ul class="rules">
       <li>「セリフ」と「動き」をひとつずつ選んで「ツッコむ！」</li>
+      <li>ボケ役とツッコミ役は「キャラをえらぶ」で 8人から選べる</li>
       <li>両方ぴったりなら <b style="color:var(--shu)">バシッ！</b> 300点。続けるとコンボで点がふえる</li>
       <li>セリフだけ合っていたら 100点</li>
     </ul>
     <div class="btn-col">
       <button class="go-btn" id="startBtn" type="button">はじめる（全10本）</button>
+      <button class="sub-btn" id="charBtn" type="button">🎭 キャラをえらぶ</button>
       <button class="sub-btn" id="saveBtn1" type="button">💾 セーブ・プレイヤー</button>
     </div>
+  </div>
+</div>
+
+<!-- キャラえらび -->
+<div class="overlay" id="charOv" hidden>
+  <div class="card wide">
+    <h2 class="card-h">🎭 キャラをえらぶ</h2>
+    <p class="role">ボケ役 <small>ボケを言う人</small></p>
+    <div class="char-grid" id="gridBoke"></div>
+    <p class="role">ツッコミ役 <small>あなたが動かす人</small></p>
+    <div class="char-grid" id="gridTsu"></div>
+    <div class="btn-col"><button class="go-btn" id="charOk" type="button">これで決まり！</button></div>
   </div>
 </div>
 
@@ -264,29 +324,43 @@ if(!window.TKCloud) window.TKCloud = { available:()=>false, famId:()=>Promise.re
 // ========== ネタ帳 ==========
 // ツッコミの動き。合う場面を短くそえて、選ぶ手がかりにする
 const ACTS = {
-  hataku:  {icon:'👋', name:'頭をはたく', hint:'うっかりしたボケに'},
-  mune:    {icon:'🤚', name:'むねを手のこうでポン', hint:'ふつうのボケに'},
-  harisen: {icon:'🪭', name:'ハリセンでしばく', hint:'調子に乗った大ボケに'},
-  zukko:   {icon:'🤸', name:'ずっこける', hint:'あきれて力がぬけるボケに'}
+  hataku: {icon:'👋', name:'全力ではたく', hint:'うっかりしたボケに'},
+  beam:   {icon:'🌊', name:'ツッコミ波を打つ', hint:'調子に乗った大ボケに'},
+  kakato: {icon:'🦶', name:'かかと落とし', hint:'ありえないボケに'},
+  zukko:  {icon:'🤸', name:'ずっこける', hint:'あきれて力がぬけるボケに'}
 };
-// boke（ボケ）、right（正しいセリフ）、wrong（ほかの答え）、act（合う動き）
-// 文字は小学4年生までに習う漢字だけ。それ以外はひらがなにする
+// id（声のファイル名）、boke（ボケ）、right（正しいセリフ）、wrong（ほかの答え）、act（合う動き）
+// 文字は小学4年生までに習う漢字だけ。それ以外はひらがなにする。tools/neta.json と同じ中身
 const NETA = [
-  {boke:'寒いから、れいぞうこに入って温まってきたわ。', right:'れいぞうこは冷やすとこや！', wrong:['何度にしてたん？','ええな、ぼくも入りたい','電気代もったいないで'], act:'hataku'},
-  {boke:'好きな食べ物はカレー。とくに、ルーとごはんをぬいたやつ。', right:'それただのお皿や！', wrong:['通やなあ','スプーンは何本いる？','からいのが好きなん？'], act:'mune'},
-  {boke:'お金をためるのが好きやねん。毎日10円ずつ使ってる。', right:'それへってるやないか！', wrong:['えらいなあ','もう何年目？','ぼくもやろかな'], act:'hataku'},
-  {boke:'ぼく、ニワトリより早起きやで。夕方6時に起きる。', right:'めっちゃねぼうやないか！', wrong:['体にええなあ','目ざまし何こ？','朝ごはん何食べるん？'], act:'zukko'},
-  {boke:'このあいだ世界一周してきてん。家のまわりを。', right:'それただの散歩や！', wrong:['何日かかったん？','おみやげは？','つかれてへん？'], act:'mune'},
-  {boke:'きのう全力でサボったら、めっちゃつかれたわ。', right:'サボりに全力出すな！', wrong:['ゆっくり休みや','何時間サボったん？','ええあせかいたな'], act:'hataku'},
-  {boke:'ぼく、しんかんせんより速く走れるで。しんかんせんが止まってたら。', right:'そらだれでも勝てるわ！', wrong:['すごい足やな','オリンピック出たら？','何キロ出るん？'], act:'harisen'},
-  {boke:'ダイエット始めてん。ケーキを毎日3こから5こに。', right:'ふえとるやないか！', wrong:['がんばってるなあ','何キロやせたん？','ケーキは何味？'], act:'harisen'},
-  {boke:'うちゅうひこうしになるゆめ、ついにかなえたで。ゆめの中で。', right:'ねてただけやないか！', wrong:['おめでとう！','月には行けた？','練習きつかった？'], act:'zukko'},
-  {boke:'泳ぐのとくいやねん。陸の上やったら。', right:'それ泳いでへんわ！', wrong:['何メートルいける？','クロールが好き？','水着はどこの？'], act:'zukko'},
-  {boke:'テスト100点やったで。10回分を足したら。', right:'1回10点やないか！', wrong:['天才やな','何の科目？','家の人にほめられた？'], act:'harisen'},
-  {boke:'かさを持ってきたで。晴れてるから家に置いてきたけど。', right:'持ってきてへんやないか！', wrong:['用意がええなあ','何色のかさ？','おりたたみ？'], act:'mune'},
-  {boke:'うちの犬、すごいねん。ニャーって鳴くねん。', right:'それネコやないか！', wrong:['かしこいなあ','何才なん？','名前は？'], act:'zukko'},
-  {boke:'毎朝ジョギングしてるで。車に乗って。', right:'それドライブや！', wrong:['えらいなあ','何キロ走るん？','朝は気持ちええよな'], act:'harisen'}
+  {id:'reizouko', boke:'寒いから、れいぞうこに入って温まってきたわ。', right:'れいぞうこは冷やすとこや！', wrong:['何度にしてたん？','ええな、ぼくも入りたい','電気代もったいないで'], act:'kakato'},
+  {id:'curry', boke:'好きな食べ物はカレー。とくに、ルーとごはんをぬいたやつ。', right:'それただのお皿や！', wrong:['通やなあ','スプーンは何本いる？','からいのが好きなん？'], act:'hataku'},
+  {id:'okane', boke:'お金をためるのが好きやねん。毎日10円ずつ使ってる。', right:'それへってるやないか！', wrong:['えらいなあ','もう何年目？','ぼくもやろかな'], act:'hataku'},
+  {id:'hayaoki', boke:'ぼく、ニワトリより早起きやで。夕方6時に起きる。', right:'めっちゃねぼうやないか！', wrong:['体にええなあ','目ざまし何こ？','朝ごはん何食べるん？'], act:'zukko'},
+  {id:'sekai', boke:'このあいだ世界一周してきてん。家のまわりを。', right:'それただの散歩や！', wrong:['何日かかったん？','おみやげは？','つかれてへん？'], act:'hataku'},
+  {id:'sabori', boke:'きのう全力でサボったら、めっちゃつかれたわ。', right:'サボりに全力出すな！', wrong:['ゆっくり休みや','何時間サボったん？','ええあせかいたな'], act:'kakato'},
+  {id:'shinkansen', boke:'ぼく、しんかんせんより速く走れるで。しんかんせんが止まってたら。', right:'そらだれでも勝てるわ！', wrong:['すごい足やな','オリンピック出たら？','何キロ出るん？'], act:'beam'},
+  {id:'diet', boke:'ダイエット始めてん。ケーキを毎日3こから5こに。', right:'ふえとるやないか！', wrong:['がんばってるなあ','何キロやせたん？','ケーキは何味？'], act:'beam'},
+  {id:'uchu', boke:'うちゅうひこうしになるゆめ、ついにかなえたで。ゆめの中で。', right:'ねてただけやないか！', wrong:['おめでとう！','月には行けた？','練習きつかった？'], act:'beam'},
+  {id:'oyogu', boke:'泳ぐのとくいやねん。陸の上やったら。', right:'それ泳いでへんわ！', wrong:['何メートルいける？','クロールが好き？','水着はどこの？'], act:'zukko'},
+  {id:'test', boke:'テスト100点やったで。10回分を足したら。', right:'1回10点やないか！', wrong:['天才やな','何の科目？','家の人にほめられた？'], act:'beam'},
+  {id:'kasa', boke:'かさを持ってきたで。晴れてるから家に置いてきたけど。', right:'持ってきてへんやないか！', wrong:['用意がええなあ','何色のかさ？','おりたたみ？'], act:'hataku'},
+  {id:'inu', boke:'うちの犬、すごいねん。ニャーって鳴くねん。', right:'それネコやないか！', wrong:['かしこいなあ','何才なん？','名前は？'], act:'kakato'},
+  {id:'jogging', boke:'毎朝ジョギングしてるで。車に乗って。', right:'それドライブや！', wrong:['えらいなあ','何キロ走るん？','朝は気持ちええよな'], act:'beam'}
 ];
+// キャラ。絵は img/chars/<id>/0〜7.webp（0 立つ・1 口あけ・2 話す・3 手を広げる・4 はたく・5 ツッコミ波・6 かかと落とし・7 ふっとぶ）
+// w,h は絵の大きさ、cx は体のまん中、top は頭のてっぺん、foot は足もと、neck はうまったときに見せる所（どれも絵の中の 0〜1）
+// 声は audio/<id>/b_<ネタ>.mp3（ボケ）・r_<ネタ>.mp3（正しいツッコミ）・w_<ネタ>_<0-2>.mp3（ほかの答え）
+const CHARS = [
+  {id:'onigiri', name:'おにぎり', w:389, h:547, cx:0.5042, top:0.0485, foot:0.9988, neck:0.38},
+  {id:'piman', name:'ピーマン', w:380, h:568, cx:0.5292, top:0.0837, foot:1.0, neck:0.4},
+  {id:'shokupan', name:'食パン', w:376, h:530, cx:0.5392, top:0.0189, foot:1.0, neck:0.36},
+  {id:'tamago', name:'ゆでたまご', w:392, h:586, cx:0.6283, top:0.1127, foot:1.0, neck:0.42},
+  {id:'takoyaki', name:'たこやき', w:380, h:544, cx:0.53, top:0.0407, foot:0.9965, neck:0.45},
+  {id:'shiitake', name:'しいたけ', w:378, h:538, cx:0.5975, top:0.0305, foot:0.9977, neck:0.43},
+  {id:'ebifry', name:'エビフライ', w:364, h:544, cx:0.5742, top:0.0435, foot:1.0, neck:0.5},
+  {id:'purin', name:'プリン', w:378, h:565, cx:0.6208, top:0.0792, foot:1.0, neck:0.42}
+];
+const CH = Object.fromEntries(CHARS.map(c => [c.id, c]));
 const ROUNDS = 10;
 
 // ========== セーブ（説明書 第5章と同じしくみ） ==========
@@ -295,7 +369,7 @@ const MAX_JSON = 240000;
 const lsGet = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
 const lsSet = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
 const lsDel = k => { try{ localStorage.removeItem(k); }catch(e){} };
-const blank = () => ({ v:1, best:0, plays:0, bashi:0, last:[], savedAt:0 });
+const blank = () => ({ v:1, best:0, plays:0, bashi:0, last:[], boke:'onigiri', tsu:'piman', savedAt:0 });
 const parse = j => { try{ const o = JSON.parse(j); return (o && typeof o === 'object') ? Object.assign(blank(), o) : null; }catch(e){ return null; } };
 
 let save = blank(), slot = null, pname = null, fam = null;
@@ -521,33 +595,248 @@ $('delOpenBtn').onclick = async () => {
 };
 
 // ========== ゲーム ==========
-let deck = [], idx = 0, score = 0, combo = 0, perfect = 0, pickLine = null, pickAct = null, locked = false;
+let deck = [], idx = 0, score = 0, combo = 0, perfect = 0, pickLine = null, pickAct = null, locked = false, playing = false;
+let seq = 0;  // 新しい場面になったら、前の場面の続き（声・動き）を止めるための番号
 const shuffle = a => { a = a.slice(); for(let i = a.length-1; i > 0; i--){ const j = Math.random()*(i+1)|0; [a[i],a[j]] = [a[j],a[i]]; } return a; };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // 音（タップのあとにだけ鳴らす）
 let ac = null;
 function audio(){ if(!ac){ try{ ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(ac && ac.state === 'suspended') ac.resume(); return ac; }
-function slap(strong){
-  const a = audio(); if(!a) return;
-  const t = a.currentTime, len = strong ? .22 : .12;
-  const buf = a.createBuffer(1, Math.floor(a.sampleRate*len), a.sampleRate), d = buf.getChannelData(0);
-  for(let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/d.length, strong ? 3 : 5);
-  const src = a.createBufferSource(); src.buffer = buf;
-  const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = strong ? 1800 : 1200; f.Q.value = .7;
-  const g = a.createGain(); g.gain.value = strong ? 1.4 : .7;
-  src.connect(f); f.connect(g); g.connect(a.destination); src.start(t);
-  const o = a.createOscillator(), og = a.createGain();
-  o.frequency.setValueAtTime(strong ? 160 : 120, t); o.frequency.exponentialRampToValueAtTime(50, t+.15);
-  og.gain.setValueAtTime(strong ? .8 : .4, t); og.gain.exponentialRampToValueAtTime(.001, t+.18);
-  o.connect(og); og.connect(a.destination); o.start(t); o.stop(t+.2);
-}
-function boo(){
+function unlock(){ const a = audio(); if(!a) return; try{ const s = a.createBufferSource(); s.buffer = a.createBuffer(1, 1, 22050); s.connect(a.destination); s.start(0); }catch(e){} }
+function noise(len, pow, freq, gain){
   const a = audio(); if(!a) return; const t = a.currentTime;
+  const buf = a.createBuffer(1, Math.floor(a.sampleRate*len), a.sampleRate), d = buf.getChannelData(0);
+  for(let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/d.length, pow);
+  const src = a.createBufferSource(); src.buffer = buf;
+  const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = .7;
+  const g = a.createGain(); g.gain.value = gain;
+  src.connect(f); f.connect(g); g.connect(a.destination); src.start(t);
+}
+function tone(type, f0, f1, len, gain){
+  const a = audio(); if(!a) return; const t = a.currentTime;
+  const o = a.createOscillator(), g = a.createGain(); o.type = type;
+  o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t+len);
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.001, t+len);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+len+.02);
+}
+function slap(strong){ noise(strong ? .22 : .12, strong ? 3 : 5, strong ? 1800 : 1200, strong ? 1.4 : .7); tone('sine', strong ? 160 : 120, 50, .18, strong ? .8 : .4); }
+function boo(){ const a = audio(); if(!a) return; const t = a.currentTime;
   const o = a.createOscillator(), g = a.createGain(); o.type = 'triangle';
   o.frequency.setValueAtTime(330, t); o.frequency.linearRampToValueAtTime(180, t+.5);
   g.gain.setValueAtTime(.25, t); g.gain.linearRampToValueAtTime(.001, t+.55);
-  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+.6);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+.6); }
+const whoosh = () => noise(.5, 1.5, 700, .5);
+const thud = () => { noise(.3, 2, 300, 1.4); tone('sine', 90, 35, .3, 1); };
+const zap = () => { tone('sawtooth', 300, 1400, .5, .12); noise(.6, 1.2, 2500, .4); };
+const twinkle = () => { [1320, 1760, 2640].forEach((f, i) => setTimeout(() => tone('sine', f, f*1.01, .35, .18), i*90)); };
+
+// 声：はじめて使うときに読みこむ。読めなかったら声なしで口だけ動かす
+const clips = new Map();
+function clip(url){
+  if(!clips.has(url)){
+    const a = audio();
+    clips.set(url, fetch(url).then(r => { if(!r.ok) throw 0; return r.arrayBuffer(); })
+      .then(b => new Promise((res, rej) => a.decodeAudioData(b, res, rej))).catch(() => null));
+  }
+  return clips.get(url);
 }
+const bokeUrl = n => 'audio/' + save.boke + '/b_' + n.id + '.mp3';
+const lineUrl = (n, t) => 'audio/' + save.tsu + '/' + (t === n.right ? 'r_' + n.id : 'w_' + n.id + '_' + n.wrong.indexOf(t)) + '.mp3';
+function preloadRound(n){ if(!n) return; clip(bokeUrl(n)); clip(lineUrl(n, n.right)); n.wrong.forEach(t => clip(lineUrl(n, t))); }
+
+let voiceSrc = null;
+function stopVoice(){ if(voiceSrc){ try{ voiceSrc.onended = null; voiceSrc.stop(); }catch(e){} voiceSrc = null; } }
+// しゃべる。声の大きさで口をあけしめする。face(open, t) がコマ番号を返す
+async function speak(actor, url, text, face, my){
+  stopVoice();
+  const buf = await clip(url);
+  if(my !== seq) return;
+  const a = audio(), dur = buf ? buf.duration : Math.max(1, text.length * .13);
+  const el = $('bokeText'); el.textContent = '';
+  let an = null, data = null;
+  if(buf && a){
+    const src = a.createBufferSource(); src.buffer = buf;
+    an = a.createAnalyser(); an.fftSize = 512; data = new Uint8Array(an.fftSize);
+    src.connect(an); an.connect(a.destination); src.start(); voiceSrc = src;
+  }
+  const t0 = performance.now();
+  await new Promise(done => {
+    let last = 0, open = false;
+    (function tick(now){
+      if(my !== seq) return done();
+      const t = (now - t0) / 1000;
+      if(t >= dur){ el.textContent = text; return done(); }
+      el.textContent = text.slice(0, Math.ceil(text.length * Math.min(1, t / (dur * .85))));
+      if(now - last > 70){
+        last = now;
+        if(an){ an.getByteTimeDomainData(data); let e = 0; for(const v of data){ const x = (v-128)/128; e += x*x; } open = Math.sqrt(e/data.length) > .045; }
+        else open = !open;
+        if(!actor.busy) actor.frame(face(open, t / dur));
+      }
+      requestAnimationFrame(tick);
+    })(t0);
+  });
+  if(voiceSrc && my === seq) voiceSrc = null;
+}
+
+// ---- キャラ（舞台の上の人） ----
+const imgs = {};
+function framesOf(id){
+  if(!imgs[id]) imgs[id] = [0,1,2,3,4,5,6,7].map(i => { const im = new Image(); im.src = 'img/chars/' + id + '/' + i + '.webp'; return im; });
+  return imgs[id];
+}
+const ready8 = id => Promise.all(framesOf(id).map(im => im.decode ? im.decode().catch(() => {}) : null));
+function makeActor(el, flip){
+  return { el, body: el.firstElementChild, img: el.querySelector('img'), flip, c: null, cur: -1, x: 0,
+    set(c){ this.c = c; this.cur = -1; this.frame(0); },
+    frame(i){ if(this.cur !== i){ this.cur = i; this.img.src = framesOf(this.c.id)[i].src; } } };
+}
+const boke = makeActor($('bokeA'), false), tsu = makeActor($('tsuA'), true);
+let L = { W: 0, H: 0, floor: 0, FH: 0 };
+function place(A, xFrac){
+  const c = A.c, s = L.FH / ((c.foot - c.top) * c.h), iw = c.w * s, ih = c.h * s;
+  A.iw = iw; A.ih = ih; A.x = xFrac * L.W;
+  A.el.style.left = A.x + 'px'; A.el.style.top = L.floor + 'px';
+  Object.assign(A.body.style, { width: iw + 'px', height: ih + 'px', left: -(A.flip ? 1 - c.cx : c.cx) * iw + 'px', top: -c.foot * ih + 'px' });
+}
+function layout(){
+  const r = $('stage').getBoundingClientRect();
+  L.W = r.width; L.H = r.height; L.floor = Math.round(r.height * .86);
+  L.FH = Math.min(r.height * .54, r.width * .55);
+  $('pit').style.height = L.floor + 'px';
+  if(boke.c) place(boke, .27);
+  if(tsu.c) place(tsu, .73);
+}
+addEventListener('resize', layout);
+function stopAll(){
+  seq++; stopVoice();
+  [boke.el, boke.body, tsu.el, tsu.body, $('space'), $('spaceImg'), $('beam'), $('ball'), $('star'), $('kira'), $('flash'), $('mound')]
+    .forEach(el => el.getAnimations().forEach(a => a.cancel()));
+  boke.el.style.visibility = ''; boke.busy = tsu.busy = false; boke.frame(0); tsu.frame(0);
+}
+function setPair(){
+  boke.set(CH[save.boke] || CH.onigiri); tsu.set(CH[save.tsu] || CH.piman);
+  layout(); drawPair();
+}
+// el.animate を待てる形に。動きを減らす設定のときは、すぐ終わらせる
+function A(el, kf, o){
+  o = Object.assign({ fill: 'forwards' }, typeof o === 'number' ? { duration: o } : o);
+  if(reduce) o.duration = 1;
+  return el.animate(kf, o).finished.catch(() => {});
+}
+function at(el, x, y){ el.style.left = x + 'px'; el.style.top = y + 'px'; }
+function bangShow(text, small){
+  const bang = $('bang');
+  bang.textContent = text; bang.className = 'bang' + (small ? ' small' : ''); void bang.offsetWidth; bang.classList.add('go');
+}
+function shake(){ const st = $('stage'); st.classList.remove('shake'); void st.offsetWidth; st.classList.add('shake'); }
+function burst(){
+  const el = $('burst'); el.className = 'burst'; el.innerHTML = '';
+  for(let i = 0; i < 14; i++){ const r = document.createElement('i'); r.style.setProperty('--a', (i*360/14) + 'deg'); el.appendChild(r); }
+  void el.offsetWidth; el.className = 'burst go';
+}
+function kira(text, x, y){ const k = $('kira'); k.textContent = text; at(k, x, y);
+  return A(k, [{opacity:0, transform:'translate(-50%,-50%) scale(.4)'},{opacity:1, transform:'translate(-50%,-50%) scale(1.1)', offset:.3},{opacity:1, transform:'translate(-50%,-50%) scale(1)', offset:.8},{opacity:0, transform:'translate(-50%,-50%) scale(1)'}], 1300); }
+function star(x, y, size){ const st = $('star'); at(st, x, y);
+  return A(st, [{opacity:0, transform:'scale(0) rotate(0)'},{opacity:1, transform:'scale(' + size + ') rotate(45deg)', offset:.4},{opacity:0, transform:'scale(.2) rotate(120deg)'}], 900); }
+
+// ボケを言う：はじめは口だけ、後半は手ぶりをつける
+async function bokeTalk(){
+  const my = seq, n = deck[idx];
+  const g = Math.random() < .5 ? 2 : 3;
+  $('who').textContent = 'ボケ'; $('bubble').classList.remove('tsu');
+  await speak(boke, bokeUrl(n), n.boke, (open, p) => p < .5 ? (open ? 1 : 0) : (open ? g : (g === 2 ? 3 : 2)), my);
+  if(my !== seq) return;
+  boke.frame(3); await sleep(500); if(my === seq) boke.frame(0);
+}
+
+// ---- ツッコミの動き ----
+// それぞれ、セリフが合っていたら最後まで動く。actOk なら「バシッ！」
+const MOVES = {
+  async hataku(my, actOk){
+    const dx = boke.x - tsu.x + L.FH * .42;
+    tsu.frame(4); whoosh();
+    await A(tsu.el, [{transform:'translateX(0)'},{transform:'translateX(' + dx + 'px)'}], { duration: 200, easing: 'ease-in' });
+    if(my !== seq) return;
+    slap(true); shake(); bangShow(actOk ? 'バシッ！' : 'ペシッ', !actOk); if(actOk) burst();
+    boke.frame(7);
+    A(boke.body, [{transform:'rotate(0)'},{transform:'rotate(-720deg)'}], 750);
+    await A(boke.el, [{transform:'translate(0,0)'},{transform:'translate(' + (-L.W * .25) + 'px,' + (-L.H * 1.3) + 'px)'}], { duration: 750, easing: 'cubic-bezier(.3,.6,.6,1)' });
+    boke.el.style.visibility = 'hidden';
+    A(tsu.el, [{transform:'translateX(' + dx + 'px)'},{transform:'translateX(0)'}], 300).then(() => { if(my === seq) tsu.frame(0); });
+    if(my !== seq) return;
+    // うちゅうまで飛んでいく
+    const sp = $('space'), si = $('spaceImg'), c = boke.c, h = L.H * .3, w = h * c.w / c.h;
+    si.src = framesOf(c.id)[7].src; si.style.width = w + 'px'; si.style.height = h + 'px';
+    $('bang').className = 'bang';
+    await A(sp, [{opacity:0},{opacity:1}], 300);
+    const ex = L.W * .62, ey = L.H * .22;
+    await A(si, [{transform:'translate(' + (L.W * .1) + 'px,' + (L.H * 1.05) + 'px) rotate(0) scale(1)'},
+                 {transform:'translate(' + (ex - w/2) + 'px,' + (ey - h/2) + 'px) rotate(-900deg) scale(.12)'}], { duration: 1500, easing: 'ease-out' });
+    if(my !== seq) return;
+    si.animate([{opacity:0}], { duration: 1, fill: 'forwards' });
+    twinkle(); star(ex, ey, 1.4); await kira('キラーン', ex, ey + L.H * .14);
+    await A(sp, [{opacity:1},{opacity:0}], 350);
+  },
+  async beam(my, actOk){
+    const hx = tsu.x - L.FH * .32, hy = L.floor - L.FH * .62;
+    tsu.frame(5);
+    const ball = $('ball'), bs = L.FH * .3; ball.style.width = ball.style.height = bs + 'px'; at(ball, hx - bs/2, hy - bs/2);
+    tone('sine', 200, 900, .45, .15);
+    await A(ball, [{opacity:0, transform:'scale(.2)'},{opacity:1, transform:'scale(1.1)'}], 450);
+    if(my !== seq) return;
+    const beam = $('beam'), bh = L.FH * .16; Object.assign(beam.style, { left: '0px', width: hx + 'px', top: (hy - bh/2) + 'px', height: bh + 'px' });
+    zap();
+    A(ball, [{opacity:1},{opacity:0}], 600);
+    await A(beam, [{opacity:1, transform:'scaleX(0)'},{opacity:1, transform:'scaleX(1)'}], 160);
+    if(my !== seq) return;
+    shake(); bangShow(actOk ? 'バシッ！' : 'ペシッ', !actOk); if(actOk) burst();
+    boke.frame(7);
+    A(beam, [{opacity:1, transform:'scaleX(1)'},{opacity:0, transform:'scaleX(1) scaleY(.2)'}], 500);
+    const tx = -boke.x + L.W * .3, ty = -L.floor + L.H * .2;
+    A(boke.body, [{transform:'rotate(0)'},{transform:'rotate(-540deg)'}], 1500);
+    await A(boke.el, [{transform:'translate(0,0) scale(1)'},{transform:'translate(' + tx*.3 + 'px,' + ty*.25 + 'px) scale(.75)', offset:.2},{transform:'translate(' + tx + 'px,' + ty + 'px) scale(.04)'}], { duration: 1500, easing: 'ease-out' });
+    boke.el.style.visibility = 'hidden';
+    tsu.frame(0);
+    if(my !== seq) return;
+    // 空のかなたで、ぴかーん
+    const px = boke.x + tx, py = L.floor + ty - L.FH * .03;
+    twinkle(); $('bang').className = 'bang';
+    A($('flash'), [{opacity:0},{opacity:.7, offset:.15},{opacity:0}], 600);
+    star(px, py, 2.2);
+    await kira('ぴかーん', px, py + L.H * .12);
+  },
+  async kakato(my, actOk){
+    const dx = boke.x - tsu.x + L.FH * .28;
+    tsu.frame(6); whoosh();
+    await A(tsu.el, [{transform:'translate(0,0)'},{transform:'translate(' + dx*.6 + 'px,' + (-L.FH * .55) + 'px)', offset:.6},{transform:'translate(' + dx + 'px,' + (-L.FH * .3) + 'px)'}], { duration: 420, easing: 'ease-out' });
+    if(my !== seq) return;
+    thud(); shake(); bangShow(actOk ? 'ズボッ！' : 'ペシッ', !actOk); if(actOk) burst();
+    const sink = (boke.c.foot - boke.c.neck) * boke.ih;
+    const m = $('mound'), mw = L.FH * .62, mh = L.FH * .14;
+    Object.assign(m.style, { width: mw + 'px', height: mh + 'px', left: (boke.x - mw/2) + 'px', top: (L.floor - mh * .45) + 'px' });
+    A(m, [{opacity:1, transform:'scaleY(0)'},{opacity:1, transform:'scaleY(1)'}], 250);
+    A(tsu.el, [{transform:'translate(' + dx + 'px,' + (-L.FH * .3) + 'px)'},{transform:'translate(' + dx + 'px,0)'}], { duration: 160, easing: 'ease-in' });
+    await A(boke.el, [{transform:'translateY(0)'},{transform:'translateY(' + sink + 'px)'}], { duration: 220, easing: 'ease-in' });
+    if(my !== seq) return;
+    await sleep(250);
+    tsu.frame(0);
+    await A(tsu.el, [{transform:'translate(' + dx + 'px,0)'},{transform:'translate(' + dx*.5 + 'px,' + (-L.FH * .2) + 'px)', offset:.5},{transform:'translate(0,0)'}], 380);
+    if(my !== seq) return;
+    await kira('💫', boke.x, L.floor - (boke.c.neck - boke.c.top) * boke.ih * 1.1 + sink * 0);
+  },
+  async zukko(my, actOk){
+    tsu.frame(7); tone('sine', 500, 120, .5, .25);
+    bangShow(actOk ? 'ずこーっ！' : 'ずこっ', !actOk);
+    await A(tsu.body, [{transform:'translateY(0) rotate(0)'},{transform:'translateY(' + (-L.FH * .15) + 'px) rotate(10deg)', offset:.35},{transform:'translateY(' + (L.FH * .08) + 'px) rotate(18deg)'}], { duration: 500, easing: 'ease-in' });
+    if(my !== seq) return;
+    thud(); shake(); if(actOk) burst();
+    boke.frame(3);
+    await sleep(900);
+  }
+};
 
 function hud(){
   $('round').textContent = (idx+1) + ' / ' + ROUNDS + ' 本目';
@@ -559,9 +848,10 @@ function button(html, onTap){
   b.addEventListener('click', onTap); return b;
 }
 function showRound(){
+  stopAll();
   const n = deck[idx]; locked = false; pickLine = pickAct = null;
+  $('who').textContent = 'ボケ'; $('bubble').classList.remove('tsu');
   $('bokeText').textContent = n.boke;
-  $('boke').className = 'boke'; $('stage').classList.remove('zukko');
   $('bang').className = 'bang'; $('result').hidden = true;
   const goBtn = $('goBtn'); goBtn.hidden = false; goBtn.disabled = true;
   const lc = $('lineChoices'); lc.innerHTML = '';
@@ -576,18 +866,14 @@ function showRound(){
     b.dataset.v = k; acEl.appendChild(b);
   });
   hud();
+  if(playing){ preloadRound(n); preloadRound(deck[idx+1]); bokeTalk(); }
 }
 function mark(box, b){ box.querySelectorAll('.c').forEach(x => x.classList.toggle('sel', x === b)); }
 function ready(){ $('goBtn').disabled = !(pickLine && pickAct); }
-function burst(){
-  const el = $('burst'); el.className = 'burst'; el.innerHTML = '';
-  for(let i = 0; i < 14; i++){ const r = document.createElement('i'); r.style.setProperty('--a', (i*360/14) + 'deg'); el.appendChild(r); }
-  void el.offsetWidth; el.className = 'burst go';
-}
-function tsukkomu(){
+async function tsukkomu(){
   if(locked || !pickLine || !pickAct) return; locked = true;
+  stopAll(); const my = seq;
   const n = deck[idx], lineOk = pickLine === n.right, actOk = pickAct === n.act;
-  const stage = $('stage'), prop = $('prop'), bang = $('bang');
   $('goBtn').hidden = true;
   $('lineChoices').querySelectorAll('.c').forEach(b => b.classList.add(b.dataset.v === n.right ? 'right' : 'wrong'));
   $('actChoices').querySelectorAll('.c').forEach(b => b.classList.add(b.dataset.v === n.act ? 'right' : 'wrong'));
@@ -605,30 +891,33 @@ function tsukkomu(){
   }
   score += pts;
 
-  if(pickAct === 'zukko'){
-    stage.classList.add('zukko');
+  $('who').textContent = 'ツッコミ'; $('bubble').classList.add('tsu');
+  if(lineOk){
+    // セリフと動きを同時に
+    const talk = speak(tsu, lineUrl(n, pickLine), pickLine, open => open ? 1 : 0, my);
+    await sleep(120);
+    tsu.busy = true;
+    if(my === seq) await MOVES[pickAct](my, actOk);
+    tsu.busy = false;
+    if(actOk){ try{ navigator.vibrate && navigator.vibrate(60); }catch(e){} }
+    await talk;
   }else{
-    prop.textContent = ACTS[pickAct].icon; prop.className = 'prop'; void prop.offsetWidth; prop.className = 'prop go';
+    await speak(tsu, lineUrl(n, pickLine), pickLine, open => open ? 1 : 0, my);
+    if(my !== seq) return;
+    tsu.frame(0); boo();
+    kira('？', boke.x + L.FH * .2, L.floor - L.FH * 1.02);
+    await A(boke.body, [{transform:'rotate(0)'},{transform:'rotate(8deg)'}], { duration: 300, easing: 'ease-out' });
+    $('who').textContent = 'ボケ'; $('bubble').classList.remove('tsu');
+    $('bokeText').textContent = '……（ボケがふしぎそうにこっちを見ている）';
   }
-  setTimeout(() => {
-    prop.className = 'prop';
-    if(lineOk){
-      slap(actOk);
-      $('boke').classList.add('hit');
-      stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake');
-      bang.textContent = actOk ? 'バシッ！' : 'ペシッ';
-      bang.className = 'bang' + (actOk ? '' : ' small'); void bang.offsetWidth; bang.classList.add('go');
-      if(actOk){ burst(); try{ navigator.vibrate && navigator.vibrate(60); }catch(e){} }
-    }else{
-      boo(); $('bokeText').textContent = '……（ボケがふしぎそうにこっちを見ている）';
-    }
-    const r = $('result'); r.hidden = false;
-    r.innerHTML = '<h3>' + title + ' <span class="pts">+' + pts + '点</span></h3><div></div>';
-    r.lastChild.textContent = note;
-    const next = button(idx+1 < ROUNDS ? '次のボケへ ▶' : '結果を見る ▶', nextRound);
-    next.className = 'go-btn'; next.style.cssText = 'margin-top:10px;font-size:20px';
-    r.appendChild(next); hud();
-  }, pickAct === 'zukko' ? 380 : 330);
+  if(my !== seq) return;
+  const r = $('result'); r.hidden = false;
+  r.innerHTML = '<h3>' + title + ' <span class="pts">+' + pts + '点</span></h3><div></div>';
+  r.lastChild.textContent = note;
+  const next = button(idx+1 < ROUNDS ? '次のボケへ ▶' : '結果を見る ▶', nextRound);
+  next.className = 'go-btn'; next.style.cssText = 'margin-top:10px;font-size:20px';
+  r.appendChild(next); hud();
+  next.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 function nextRound(){
   idx++;
@@ -636,6 +925,7 @@ function nextRound(){
   showRound();
 }
 function finish(){
+  playing = false; stopAll();
   const rec = score > save.best;
   save.plays++; save.bashi += perfect; save.best = Math.max(save.best, score);
   save.last = [score].concat(save.last || []).slice(0, 10);
@@ -651,24 +941,75 @@ function finish(){
   $('endNote').textContent = '10本中 ' + perfect + '本 バシッ！とキマりました。';
   $('endOv').hidden = false;
 }
+
+// ---- キャラえらび ----
+function drawPair(){
+  const v = $('pairView'); v.innerHTML = '';
+  [['ボケ役', save.boke], ['ツッコミ役', save.tsu]].forEach(([role, id], i) => {
+    if(i) { const s = document.createElement('div'); s.className = 'vs'; s.textContent = '×'; v.appendChild(s); }
+    const f = document.createElement('figure'); const c = CH[id] || CHARS[0];
+    f.innerHTML = '<img alt=""><span></span><small></small>';
+    f.querySelector('img').src = 'img/chars/' + c.id + '/0.webp';
+    f.querySelector('span').textContent = c.name; f.querySelector('small').textContent = role;
+    v.appendChild(f);
+  });
+}
+function openChars(){
+  let b = save.boke, t = save.tsu;
+  const draw = () => {
+    [['gridBoke', 'b'], ['gridTsu', 't']].forEach(([gid, role]) => {
+      const g = $(gid); g.innerHTML = '';
+      CHARS.forEach(c => {
+        const el = document.createElement('button'); el.type = 'button'; el.className = 'ch';
+        if((role === 'b' ? b : t) === c.id) el.classList.add('sel');
+        el.innerHTML = '<img alt=""><span></span>';
+        el.firstChild.src = 'img/chars/' + c.id + '/0.webp'; el.lastChild.textContent = c.name;
+        el.onclick = () => {
+          // 同じ人をえらんだら、ボケとツッコミを入れかえる
+          if(role === 'b'){ if(c.id === t) t = b; b = c.id; } else { if(c.id === b) b = t; t = c.id; }
+          draw();
+        };
+        g.appendChild(el);
+      });
+    });
+  };
+  draw();
+  $('charOk').onclick = () => {
+    save.boke = b; save.tsu = t; persist();
+    setPair(); $('charOv').hidden = true;
+  };
+  $('charOv').hidden = false;
+}
+
 function showTitle(){
+  playing = false; stopAll();
+  if(!CH[save.boke]) save.boke = 'onigiri';
+  if(!CH[save.tsu]) save.tsu = 'piman';
+  setPair();
   $('hello').textContent = 'ようこそ、' + (pname || '') + 'さん。ボケにツッコんで、スカッとしよう。';
   $('stBest').textContent = save.best; $('stPlays').textContent = save.plays; $('stBashi').textContent = save.bashi;
   $('endOv').hidden = true; $('titleOv').hidden = false;
 }
-function start(){
-  audio();
+async function start(){
+  unlock();
+  const btns = [$('startBtn'), $('againBtn')];
+  btns.forEach(x => { x.disabled = true; x.dataset.t = x.textContent; x.textContent = '⏳ じゅんび中…'; });
   deck = shuffle(NETA).slice(0, ROUNDS); idx = 0; score = 0; combo = 0; perfect = 0;
+  preloadRound(deck[0]);
+  await Promise.race([Promise.all([ready8(save.boke), ready8(save.tsu), clip(bokeUrl(deck[0]))]), sleep(8000)]);
+  btns.forEach(x => { x.disabled = false; x.textContent = x.dataset.t; });
   $('titleOv').hidden = true; $('endOv').hidden = true;
-  showRound();
+  playing = true;
+  setPair(); showRound();
 }
 $('goBtn').addEventListener('click', tsukkomu);
 $('startBtn').addEventListener('click', start);
 $('againBtn').addEventListener('click', start);
 $('toTitleBtn').addEventListener('click', showTitle);
+$('charBtn').addEventListener('click', openChars);
 
 // うしろの舞台が空にならないように、1本目を見せておく
-deck = shuffle(NETA).slice(0, ROUNDS); showRound();
+deck = shuffle(NETA).slice(0, ROUNDS); setPair(); showRound();
 boot();
 })();
 </script>
