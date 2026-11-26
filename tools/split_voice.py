@@ -45,7 +45,10 @@ def norm(t):
 if words:
     # 文字起こしの1文字ずつの時刻をつかって、セリフの文字にあてはめて切る
     fix = json.load(open(os.path.join(root, 'tools', 'tts_fix.json'), encoding='utf8'))
-    lines = [norm(fix.get(t, t)) for _, t in items]
+    def readas(t):  # tts_fix.json は「書き → 読み」の置きかえ表
+        for k in sorted(fix, key=len, reverse=True): t = t.replace(k, fix[k])
+        return t
+    lines = [norm(readas(t)) for _, t in items]
     tr = [(w['text'], w['start'], w['end']) for w in words if w.get('type') == 'word']
     tc = []
     for t, a, b in tr:

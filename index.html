@@ -58,7 +58,11 @@ button{font-family:inherit}
 .actor .body{position:absolute;transform-origin:50% 60%}
 .actor img{width:100%;height:100%;display:block}
 .actor.flip img{transform:scaleX(-1)}
-.space{position:absolute;inset:0;opacity:0;pointer-events:none;overflow:hidden;
+/* 別のシーン（住宅街・サッカー場・あらし）。絵は img/bg/ */
+.scene{position:absolute;inset:0;opacity:0;pointer-events:none;overflow:hidden;background:#222}
+.scene .bg{position:absolute;inset:0;background:center bottom/cover no-repeat}
+.tmp{position:absolute;left:0;top:0;pointer-events:none}
+.space{position:absolute;inset:0;opacity:0;pointer-events:none;overflow:hidden;z-index:2;
   background:radial-gradient(ellipse at 30% 30%,#2b3d82 0%,#0c1236 55%,#03040d 100%)}
 .space::before{content:"";position:absolute;inset:0;background-image:
   radial-gradient(2px 2px at 8% 14%,#fff 50%,transparent 51%),radial-gradient(2px 2px at 22% 62%,#fff 50%,transparent 51%),
@@ -78,11 +82,11 @@ button{font-family:inherit}
 .beam{position:absolute;opacity:0;border-radius:999px;transform-origin:100% 50%;pointer-events:none;
   background:linear-gradient(90deg,rgba(140,230,255,.2),#8fe8ff 25%,#fff 55%,#d9fbff);box-shadow:0 0 26px 10px rgba(120,220,255,.85)}
 .ball{position:absolute;border-radius:50%;opacity:0;pointer-events:none;background:radial-gradient(circle,#fff 0 30%,#9cecff 55%,rgba(80,200,255,0) 72%)}
-.star{position:absolute;width:90px;height:90px;margin:-45px 0 0 -45px;opacity:0;pointer-events:none;
+.star{position:absolute;z-index:2;width:90px;height:90px;margin:-45px 0 0 -45px;opacity:0;pointer-events:none;
   background:radial-gradient(circle,#fff 0 20%,#fffbd0 35%,rgba(255,250,200,0) 60%);
   clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%)}
-.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
-.kira{position:absolute;font-family:var(--f-display);color:#fff6a8;-webkit-text-stroke:5px var(--ink);paint-order:stroke fill;
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:2}
+.kira{position:absolute;z-index:2;font-family:var(--f-display);color:#fff6a8;-webkit-text-stroke:5px var(--ink);paint-order:stroke fill;
   font-size:clamp(28px,5vw,50px);opacity:0;white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%)}
 .mound{position:absolute;opacity:0;pointer-events:none;transform-origin:50% 100%;border-radius:50% 50% 12% 12%/90% 90% 10% 10%;
   background:radial-gradient(ellipse at 50% 35%,#a8733f,#6b4220 75%);box-shadow:inset 0 -6px 0 rgba(0,0,0,.2)}
@@ -197,6 +201,7 @@ hr.sep{border:0;border-top:2px dashed #d8c3a0;margin:14px 0}
       <div class="actor" id="bokeA"><div class="body"><img alt=""></div></div>
       <div class="actor flip" id="tsuA"><div class="body"><img alt=""></div></div>
     </div>
+    <div class="scene" id="scene"><div class="bg" id="sceneBg"></div></div>
     <svg class="goal" id="goal" viewBox="0 0 120 100" preserveAspectRatio="none" aria-hidden="true">
       <defs><pattern id="net" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0 0L8 8M8 0L0 8" stroke="#fff" stroke-width="1" opacity=".8"/></pattern></defs>
       <g id="goalNet"><polygon points="12,10 120,4 120,100 12,100" fill="url(#net)"/><polygon points="12,10 120,4 120,100 12,100" fill="rgba(255,255,255,.18)"/></g>
@@ -341,116 +346,118 @@ const ACTS = {
   hataku: {icon:'👋', name:'全力ではたく', hint:'うっかりしたボケに'},
   beam:   {icon:'🌊', name:'ツッコミ波を打つ', hint:'調子に乗った大ボケに'},
   kakato: {icon:'🦶', name:'かかと落とし', hint:'ありえないボケに'},
-  zukko:  {icon:'🤸', name:'ずっこける', hint:'あきれて力がぬけるボケに'},
   oshiri: {icon:'🍑', name:'おしりアタック', hint:'話が大きすぎるボケに'},
   kaiten: {icon:'🌀', name:'回転アタック', hint:'自分につごうのいいボケに'},
   zutsuki:{icon:'🚀', name:'ミサイル頭つき', hint:'速さ自まんのボケに'},
-  kick:   {icon:'⚽', name:'全力キック', hint:'体を動かすボケに'}
+  kick:   {icon:'⚽', name:'全力キック', hint:'体を動かすボケに'},
+  paan:   {icon:'🖐️', name:'大きな手でパーン', hint:'できないのに、いばるボケに'},
+  arashi: {icon:'⛈️', name:'あらしまでけとばす', hint:'天気や寒い暑いのボケに'},
+  yokeru: {icon:'🦘', name:'よけられツッコミ', hint:'にげるのがうまいボケに'}
 };
 const ACT_CHOICES = 4;  // 1回に出す動きの数（正しい動き＋ほかからランダム）
 // id（声のファイル名）、boke（ボケ）、right（正しいセリフ）、wrong（ほかの答え）、act（合う動き）
 // 文字は小学4年生までに習う漢字だけ。それ以外はひらがなにする。tools/neta.json から tools/sync_data.py で作る
 const NETA = [
-  {"id":"reizouko","boke":"寒いから、れいぞうこに入って温まってきたわ。","right":"れいぞうこは冷やすとこや！","wrong":["何度にしてたん？","ええな、ぼくも入りたい","電気代もったいないで"],"act":"kakato"},
+  {"id":"reizouko","boke":"寒いから、れいぞうこに入って温まってきたわ。","right":"れいぞうこは冷やすとこや！","wrong":["何度にしてたん？","ええな、ぼくも入りたい","電気代もったいないで"],"act":"arashi"},
   {"id":"curry","boke":"好きな食べ物はカレー。とくに、ルーとごはんをぬいたやつ。","right":"それただのお皿や！","wrong":["通やなあ","スプーンは何本いる？","からいのが好きなん？"],"act":"hataku"},
   {"id":"okane","boke":"お金をためるのが好きやねん。毎日10円ずつ使ってる。","right":"それへってるやないか！","wrong":["えらいなあ","もう何年目？","ぼくもやろかな"],"act":"kaiten"},
-  {"id":"hayaoki","boke":"ぼく、ニワトリより早起きやで。夕方6時に起きる。","right":"めっちゃねぼうやないか！","wrong":["体にええなあ","目ざまし何こ？","朝ごはん何食べるん？"],"act":"zukko"},
+  {"id":"hayaoki","boke":"ぼく、ニワトリより早起きやで。夕方6時に起きる。","right":"めっちゃねぼうやないか！","wrong":["体にええなあ","目ざまし何こ？","朝ごはん何食べるん？"],"act":"yokeru"},
   {"id":"sekai","boke":"このあいだ世界一周してきてん。家のまわりを。","right":"それただの散歩や！","wrong":["何日かかったん？","おみやげは？","つかれてへん？"],"act":"oshiri"},
   {"id":"sabori","boke":"きのう全力でサボったら、めっちゃつかれたわ。","right":"サボりに全力出すな！","wrong":["ゆっくり休みや","何時間サボったん？","ええあせかいたな"],"act":"kaiten"},
   {"id":"shinkansen","boke":"ぼく、しんかんせんより速く走れるで。しんかんせんが止まってたら。","right":"そらだれでも勝てるわ！","wrong":["すごい足やな","オリンピック出たら？","何キロ出るん？"],"act":"zutsuki"},
   {"id":"diet","boke":"ダイエット始めてん。ケーキを毎日3こから5こに。","right":"ふえとるやないか！","wrong":["がんばってるなあ","何キロやせたん？","ケーキは何味？"],"act":"beam"},
   {"id":"uchu","boke":"うちゅうひこうしになるゆめ、ついにかなえたで。ゆめの中で。","right":"ねてただけやないか！","wrong":["おめでとう！","月には行けた？","練習きつかった？"],"act":"beam"},
-  {"id":"oyogu","boke":"泳ぐのとくいやねん。陸の上やったら。","right":"それ泳いでへんわ！","wrong":["何メートルいける？","クロールが好き？","水着はどこの？"],"act":"zukko"},
+  {"id":"oyogu","boke":"泳ぐのとくいやねん。陸の上やったら。","right":"それ泳いでへんわ！","wrong":["何メートルいける？","クロールが好き？","水着はどこの？"],"act":"yokeru"},
   {"id":"test","boke":"テスト100点やったで。10回分を足したら。","right":"1回10点やないか！","wrong":["天才やな","何の科目？","家の人にほめられた？"],"act":"beam"},
-  {"id":"kasa","boke":"かさを持ってきたで。晴れてるから家に置いてきたけど。","right":"持ってきてへんやないか！","wrong":["用意がええなあ","何色のかさ？","おりたたみ？"],"act":"hataku"},
+  {"id":"kasa","boke":"かさを持ってきたで。晴れてるから家に置いてきたけど。","right":"持ってきてへんやないか！","wrong":["用意がええなあ","何色のかさ？","おりたたみ？"],"act":"arashi"},
   {"id":"inu","boke":"うちの犬、すごいねん。ニャーって鳴くねん。","right":"それネコやないか！","wrong":["かしこいなあ","何才なん？","名前は？"],"act":"kakato"},
   {"id":"jogging","boke":"毎朝ジョギングしてるで。車に乗って。","right":"それドライブや！","wrong":["えらいなあ","何キロ走るん？","朝は気持ちええよな"],"act":"kick"},
-  {"id":"nemui","boke":"ねむくないで。目をあけたまま、ねてるだけや。","right":"それねてるやないか！","wrong":["器用やなあ","何時間ねたん？","ゆめは見た？"],"act":"zukko"},
+  {"id":"nemui","boke":"ねむくないで。目をあけたまま、ねてるだけや。","right":"それねてるやないか！","wrong":["器用やなあ","何時間ねたん？","ゆめは見た？"],"act":"yokeru"},
   {"id":"ramen","boke":"ラーメンが大好きやねん。めんとスープはのこすけど。","right":"何を食べてるんや！","wrong":["チャーシューは？","何味が好き？","どこの店？"],"act":"hataku"},
   {"id":"tokei","boke":"新しいうで時計、買うてん。はりがないやつ。","right":"時間わからんやないか！","wrong":["高かった？","何色？","おしゃれやな"],"act":"hataku"},
   {"id":"tsuri","boke":"つりに行って、でっかいのつれたで。くじらや。","right":"どこでつってきたんや！","wrong":["何センチ？","おいしかった？","えさは何？"],"act":"oshiri"},
-  {"id":"fujisan","boke":"ふじ山に登ってきたで。写真で。","right":"写真見ただけやないか！","wrong":["何時間かかった？","上は寒かった？","ご来光見た？"],"act":"zukko"},
-  {"id":"tenki","boke":"明日の天気をあてる力があるねん。晴れか雨か、どっちかや。","right":"そらどっちかやろ！","wrong":["すごい力やな","あさっては？","かさいる？"],"act":"beam"},
+  {"id":"fujisan","boke":"ふじ山に登ってきたで。写真で。","right":"写真見ただけやないか！","wrong":["何時間かかった？","上は寒かった？","ご来光見た？"],"act":"yokeru"},
+  {"id":"tenki","boke":"明日の天気をあてる力があるねん。晴れか雨か、どっちかや。","right":"そらどっちかやろ！","wrong":["すごい力やな","あさっては？","かさいる？"],"act":"arashi"},
   {"id":"kagi","boke":"家のかぎ、なくさへんように、家の中にしまってきた。","right":"入られへんやないか！","wrong":["えらいなあ","どこにしまったん？","ひきだしの中？"],"act":"kakato"},
   {"id":"shukudai","boke":"しゅくだい、ちゃんとやったで。犬が。","right":"犬にやらせるな！","wrong":["何の教科？","犬、かしこいな","全部できた？"],"act":"kick"},
   {"id":"piano","boke":"ピアノ10年習ってるねん。ドの場所はまだわからん。","right":"10年何してたんや！","wrong":["好きな曲は？","発表会は？","毎日練習してる？"],"act":"hataku"},
-  {"id":"senpuki","boke":"寒いから、せんぷうきを強にしてん。","right":"よけい寒なるわ！","wrong":["新しいやつ？","何台ある？","音うるさい？"],"act":"zukko"},
+  {"id":"senpuki","boke":"寒いから、せんぷうきを強にしてん。","right":"よけい寒なるわ！","wrong":["新しいやつ？","何台ある？","音うるさい？"],"act":"arashi"},
   {"id":"yasai","boke":"やさいはしっかり食べてるで。ポテトチップスで。","right":"それおかしや！","wrong":["えらいなあ","何味が好き？","毎日食べるん？"],"act":"kaiten"},
   {"id":"hashiru","boke":"ぼく、足が速いねん。自転車に乗ったら。","right":"それ自転車が速いんや！","wrong":["何秒で走る？","リレーの選手？","どこの自転車？"],"act":"zutsuki"},
   {"id":"hokkaido","boke":"家族で北海道に行ってきてん。地図の上で。","right":"指でなぞっただけやないか！","wrong":["何日おったん？","カニ食べた？","寒かった？"],"act":"oshiri"},
   {"id":"otsukai","boke":"お母さんにたのまれて、たまご買うてきた。とちゅうで全部食べた。","right":"おつかいの意味ないやん！","wrong":["何こ買ったん？","ゆでたまご？","おいしかった？"],"act":"hataku"},
   {"id":"soccer","boke":"サッカーとくいやで。ボールを手で持って走る。","right":"それラグビーや！","wrong":["どこのチーム？","ポジションは？","何点入れた？"],"act":"kick"},
   {"id":"yakyu","boke":"野球でホームラン打ったで。テレビゲームで。","right":"ゲームの話かい！","wrong":["何本打ったん？","どこまで飛んだ？","プロになれるな"],"act":"kick"},
-  {"id":"kaze","boke":"かぜ引いたから、はだかで外を走ってきた。","right":"悪くなるわ！","wrong":["熱は何度？","薬飲んだ？","お大事に"],"act":"kakato"},
+  {"id":"kaze","boke":"かぜ引いたから、はだかで外を走ってきた。","right":"悪くなるわ！","wrong":["熱は何度？","薬飲んだ？","お大事に"],"act":"arashi"},
   {"id":"okashi","boke":"おかしは一日一こって決めてる。ケーキまるごと一こ。","right":"それ大きすぎるやろ！","wrong":["えらいなあ","何のケーキ？","いちごのってる？"],"act":"kaiten"},
-  {"id":"shincho","boke":"せが高くなったで。ぼうしをかぶったら。","right":"ぼうしの分やないか！","wrong":["何センチ？","牛にゅう飲んだ？","すごいな"],"act":"beam"},
-  {"id":"anzan","boke":"暗算とくいやで。1たす1は…ええと、電たくどこ？","right":"暗算ちゃうやないか！","wrong":["天才やな","そろばん習ってる？","何けたまでできる？"],"act":"beam"},
+  {"id":"shincho","boke":"せが高くなったで。ぼうしをかぶったら。","right":"ぼうしの分やないか！","wrong":["何センチ？","牛にゅう飲んだ？","すごいな"],"act":"paan"},
+  {"id":"anzan","boke":"暗算とくいやで。1たす1は…ええと、電たくどこ？","right":"暗算ちゃうやないか！","wrong":["天才やな","そろばん習ってる？","何けたまでできる？"],"act":"paan"},
   {"id":"hon","boke":"本を一日100さつ読むで。表紙だけ。","right":"中身も読め！","wrong":["何の本？","図書館で？","目つかれへん？"],"act":"hataku"},
-  {"id":"ryori","boke":"料理がとくいやねん。カップラーメンにお湯を入れる名人や。","right":"それだれでもできるわ！","wrong":["何分待つ？","味は何が好き？","おすすめある？"],"act":"beam"},
+  {"id":"ryori","boke":"料理がとくいやねん。カップラーメンにお湯を入れる名人や。","right":"それだれでもできるわ！","wrong":["何分待つ？","味は何が好き？","おすすめある？"],"act":"paan"},
   {"id":"kingyo","boke":"金魚を育ててるねん。もう1メートルになった。","right":"それもう金魚ちゃうやろ！","wrong":["名前は？","何食べるん？","水そうは大きい？"],"act":"kakato"},
   {"id":"tanjobi","boke":"たん生日に、地球をもらったで。地球ぎやけど。","right":"地球ぎかい！","wrong":["おめでとう！","何才になったん？","だれにもらったん？"],"act":"oshiri"},
   {"id":"benkyo","boke":"毎日10時間勉強してるで。つくえの前で、ねながら。","right":"ねたらあかんやろ！","wrong":["えらいなあ","何の勉強？","つかれへん？"],"act":"kaiten"},
   {"id":"obake","boke":"おばけなんか、こわないで。電気をつけて、お母さんといっしょなら。","right":"めっちゃこわがってるやないか！","wrong":["強いなあ","おばけ見たことある？","夜は何時にねる？"],"act":"beam"},
   {"id":"heya","boke":"部屋のそうじしたで。全部ベッドの下におしこんだ。","right":"かくしただけやないか！","wrong":["きれいになった？","何時間かかった？","えらいなあ"],"act":"kick"},
   {"id":"hanabi","boke":"夏休み、花火を見に行ってん。昼に。","right":"何も見えへんやろ！","wrong":["きれいやった？","ゆかた着た？","人多かった？"],"act":"oshiri"},
-  {"id":"kaminari","boke":"かみなりが鳴ったら、おへそかくすやろ。ぼくは耳をかくす。","right":"おへそかくせ！","wrong":["音こわいもんな","どこに？","どっちの耳？"],"act":"zukko"},
+  {"id":"kaminari","boke":"かみなりが鳴ったら、おへそかくすやろ。ぼくは耳をかくす。","right":"おへそかくせ！","wrong":["音こわいもんな","どこに？","どっちの耳？"],"act":"arashi"},
   {"id":"iruka","boke":"海で泳いでたら、イルカに勝ったで。イルカはねてたけど。","right":"ねてるのに勝負すな！","wrong":["速いなあ","どこの海？","イルカかわいかった？"],"act":"zutsuki"},
   {"id":"nawatobi","boke":"なわとび100回とべるで。なわなしで。","right":"それただのジャンプや！","wrong":["二重とびは？","何分かかる？","すごいな"],"act":"kick"},
   {"id":"tegami","boke":"おばあちゃんに手紙書いてん。ポストに入れるのだけわすれた。","right":"一番大事なとこや！","wrong":["何書いたん？","よろこぶな","字きれい？"],"act":"hataku"},
   {"id":"nikki","boke":"毎日日記つけてるで。一年分、まとめて大みそかに。","right":"それ日記ちゃうやろ！","wrong":["えらいなあ","何さつ目？","見せて"],"act":"kaiten"},
   {"id":"hikoki","boke":"ひこうきに乗ってきてん。公園の、ひこうきの形の遊具。","right":"公園やないか！","wrong":["どこ行ったん？","まど側？","ごはん出た？"],"act":"oshiri"},
-  {"id":"otona","boke":"ぼく、もう大人やで。夜9時まで起きてられる。","right":"それ子どもや！","wrong":["すごいなあ","何時に起きるん？","ねむくない？"],"act":"zukko"},
-  {"id":"eigo","boke":"英語ペラペラやで。ハロー、サンキュー、以上。","right":"二つだけやないか！","wrong":["どこで習ったん？","外国行くん？","発音ええな"],"act":"beam"},
+  {"id":"otona","boke":"ぼく、もう大人やで。夜9時まで起きてられる。","right":"それ子どもや！","wrong":["すごいなあ","何時に起きるん？","ねむくない？"],"act":"paan"},
+  {"id":"eigo","boke":"英語ペラペラやで。ハロー、サンキュー、以上。","right":"二つだけやないか！","wrong":["どこで習ったん？","外国行くん？","発音ええな"],"act":"paan"},
   {"id":"hamigaki","boke":"ねる前に歯をみがくやろ。ぼくは、ねてからみがく。","right":"どうやってみがくんや！","wrong":["えらいなあ","何分みがく？","歯ブラシ何色？"],"act":"kakato"},
   {"id":"moji","boke":"字がきれいって言われるねん。読めへんけど、形がきれいって。","right":"読めな意味ないやろ！","wrong":["習字習ってる？","見せて","えんぴつ何使ってる？"],"act":"kaiten"},
-  {"id":"kakurenbo","boke":"かくれんぼ、強いで。かくれたまま家に帰る。","right":"それ帰ってるだけや！","wrong":["どこにかくれるん？","見つかったことある？","何人でやるん？"],"act":"kick"},
+  {"id":"kakurenbo","boke":"かくれんぼ、強いで。かくれたまま家に帰る。","right":"それ帰ってるだけや！","wrong":["どこにかくれるん？","見つかったことある？","何人でやるん？"],"act":"yokeru"},
   {"id":"sukikirai","boke":"好ききらいないで。やさい以外は。","right":"めっちゃあるやないか！","wrong":["えらいなあ","何が好き？","給食は全部食べる？"],"act":"hataku"},
   {"id":"kazoku","boke":"うちの家族、10人やで。そのうちネコが8ひき。","right":"人は2人やないか！","wrong":["にぎやかやな","名前は？","ごはん大変やな"],"act":"oshiri"},
-  {"id":"megane","boke":"めがねをさがしてるねん。かけたまま。","right":"顔にあるやないか！","wrong":["どこでなくしたん？","何色？","いっしょにさがそか？"],"act":"zukko"},
+  {"id":"megane","boke":"めがねをさがしてるねん。かけたまま。","right":"顔にあるやないか！","wrong":["どこでなくしたん？","何色？","いっしょにさがそか？"],"act":"yokeru"},
   {"id":"hyakuen","boke":"100円ひろってん。自分のさいふから落ちたやつ。","right":"それ自分のやないか！","wrong":["交番にとどけた？","ラッキーやな","何に使うん？"],"act":"kaiten"},
   {"id":"sora","boke":"ぼく、空飛べるで。ジャンプしてる間だけ。","right":"それ飛んでへん！","wrong":["どれくらい？","鳥みたいやな","羽ある？"],"act":"zutsuki"},
   {"id":"marathon","boke":"マラソン大会で一番やったで。後ろから。","right":"それビリやないか！","wrong":["おめでとう！","何キロ走ったん？","メダルもらった？"],"act":"zutsuki"},
-  {"id":"hansode","boke":"冬でも半そでやで。上にコート3まい着るけど。","right":"めっちゃ着とるやないか！","wrong":["寒くないん？","強いなあ","何色のコート？"],"act":"beam"},
+  {"id":"hansode","boke":"冬でも半そでやで。上にコート3まい着るけど。","right":"めっちゃ着とるやないか！","wrong":["寒くないん？","強いなあ","何色のコート？"],"act":"arashi"},
   {"id":"nichiyo","boke":"学校休んでん。日曜日やから。","right":"それ休みの日や！","wrong":["どうしたん？","熱あった？","ゆっくり休みや"],"act":"kakato"},
-  {"id":"ice","boke":"アイス、とけへんように、ストーブの前においてる。","right":"一番とけるわ！","wrong":["何味？","何こあるん？","一こちょうだい"],"act":"hataku"},
+  {"id":"ice","boke":"アイス、とけへんように、ストーブの前においてる。","right":"一番とけるわ！","wrong":["何味？","何こあるん？","一こちょうだい"],"act":"arashi"},
   {"id":"tsukue","boke":"つくえの上、きれいやで。全部ゆかにおいてる。","right":"ゆかがきたないわ！","wrong":["えらいなあ","そうじ好き？","何がおいてあるん？"],"act":"kakato"},
   {"id":"densha","boke":"電車に乗りおくれそうやったから、走って電車を追いこしてん。","right":"どんな足や！","wrong":["間に合った？","何駅？","つかれた？"],"act":"zutsuki"},
   {"id":"taiso","boke":"ラジオ体そう、毎朝やってるで。ラジオを聞くだけ。","right":"体動かせ！","wrong":["えらいなあ","何時から？","ハンコもらった？"],"act":"kick"},
   {"id":"niwa","boke":"うちの庭、めっちゃ広いで。たたみ一まい分。","right":"せまいやないか！","wrong":["木ある？","バーベキューできる？","花さいてる？"],"act":"oshiri"},
-  {"id":"shashin","boke":"写真とるの上手やで。全部、指がうつってるけど。","right":"それ下手や！","wrong":["何とったん？","カメラ何？","見せて"],"act":"zukko"},
+  {"id":"shashin","boke":"写真とるの上手やで。全部、指がうつってるけど。","right":"それ下手や！","wrong":["何とったん？","カメラ何？","見せて"],"act":"paan"},
   {"id":"kyoryu","boke":"きょうりゅうと友だちやねん。毎日、図かんで会ってる。","right":"それ本やないか！","wrong":["大きかった？","何きょうりゅう？","こわかった？"],"act":"beam"},
-  {"id":"uta","boke":"歌うまいで。ねてる時だけ。","right":"だれが聞いたんや！","wrong":["何の歌？","カラオケ行こか","歌手になれるな"],"act":"kaiten"},
+  {"id":"uta","boke":"歌うまいで。ねてる時だけ。","right":"だれが聞いたんや！","wrong":["何の歌？","カラオケ行こか","歌手になれるな"],"act":"paan"},
   {"id":"robot","boke":"ロボット作ってん。ダンボールで。ぼくが中に入って動かす。","right":"それ着ぐるみや！","wrong":["すごいな","名前は？","何ができるん？"],"act":"oshiri"},
-  {"id":"yukidaruma","boke":"雪だるま作ったで。夏に、かき氷で。","right":"すぐとけるわ！","wrong":["何こ作ったん？","大きい？","目は何で作った？"],"act":"kakato"},
+  {"id":"yukidaruma","boke":"雪だるま作ったで。夏に、かき氷で。","right":"すぐとけるわ！","wrong":["何こ作ったん？","大きい？","目は何で作った？"],"act":"arashi"},
   {"id":"zense","boke":"ぼく、むかしは有名人やったで。生まれる前に。","right":"おぼえてへんやろ！","wrong":["何の人？","サインちょうだい","テレビ出てた？"],"act":"beam"},
-  {"id":"chikara","boke":"お父さん、力持ちやで。わりばし、一回でわれる。","right":"それふつうや！","wrong":["すごいな","何才？","うで太い？"],"act":"hataku"},
+  {"id":"chikara","boke":"お父さん、力持ちやで。わりばし、一回でわれる。","right":"それふつうや！","wrong":["すごいな","何才？","うで太い？"],"act":"paan"},
   {"id":"lion","boke":"動物園でライオンと友だちになったで。おりの外から手をふった。","right":"それ友だちちゃう！","wrong":["かっこよかった？","何してた？","えさあげた？"],"act":"oshiri"},
-  {"id":"kutsushita","boke":"くつ下、ちゃんとそろえてはいてきたで。右と右。","right":"どっちも右かい！","wrong":["何色？","新しいの？","おしゃれやな"],"act":"zukko"},
+  {"id":"kutsushita","boke":"くつ下、ちゃんとそろえてはいてきたで。右と右。","right":"どっちも右かい！","wrong":["何色？","新しいの？","おしゃれやな"],"act":"kakato"},
   {"id":"america","boke":"アメリカに行ってきたで。大阪のアメリカ村やけど。","right":"大阪やないか！","wrong":["何時間かかった？","英語しゃべった？","おみやげは？"],"act":"oshiri"},
   {"id":"juku","boke":"じゅくに通ってるで。行くとちゅうの公園に。","right":"公園に通ってるやないか！","wrong":["何曜日？","勉強大変？","何時まで？"],"act":"kick"},
   {"id":"gomi","boke":"ゴミの日、まちがえへんで。毎日出してる。","right":"それまちがえてるわ！","wrong":["えらいなあ","何曜日が何？","分けてる？"],"act":"kakato"},
-  {"id":"ame","boke":"雨をふらせることができるで。ホースで。","right":"それ水まきや！","wrong":["すごい力やな","明日もふる？","にじも出せる？"],"act":"beam"},
-  {"id":"neko","boke":"ネコにすかれてるねん。ネコの方からにげていく。","right":"きらわれてるやないか！","wrong":["何びきおるん？","なでた？","名前は？"],"act":"zukko"},
-  {"id":"hayakuchi","boke":"早口言葉とくいやで。なまむぎ、なまごめ…なんやったっけ。","right":"言えてへんやないか！","wrong":["もう一回言うて","すごいな","ほかのもできる？"],"act":"kaiten"},
+  {"id":"ame","boke":"雨をふらせることができるで。ホースで。","right":"それ水まきや！","wrong":["すごい力やな","明日もふる？","にじも出せる？"],"act":"arashi"},
+  {"id":"neko","boke":"ネコにすかれてるねん。ネコの方からにげていく。","right":"きらわれてるやないか！","wrong":["何びきおるん？","なでた？","名前は？"],"act":"yokeru"},
+  {"id":"hayakuchi","boke":"早口言葉とくいやで。なまむぎ、なまごめ…なんやったっけ。","right":"言えてへんやないか！","wrong":["もう一回言うて","すごいな","ほかのもできる？"],"act":"beam"},
   {"id":"ojiichan","boke":"うちのおじいちゃん、100才やで。数えまちがえてなかったら、70才。","right":"30も多いわ！","wrong":["元気やな","長生きやな","何が好き？"],"act":"oshiri"},
   {"id":"shoyu","boke":"のどかわいたから、しょうゆ飲んできた。","right":"しょうゆは飲みもんちゃう！","wrong":["おいしかった？","何の味？","冷たいの？"],"act":"hataku"},
   {"id":"kabin","boke":"花びん、わってもうた。…いや、わってへんで。こなごなや。","right":"もっとあかんわ！","wrong":["けがせんかった？","高いやつ？","何色の？"],"act":"kick"},
   {"id":"tennis","boke":"テニスのサーブ、めっちゃ速いで。前には飛ばへんけど。","right":"入らな意味ないやろ！","wrong":["すごいなあ","何年やってる？","ラケット何？"],"act":"kick"},
-  {"id":"kanji","boke":"かん字、全部書けるで。ひらがなで。","right":"それかん字ちゃうやろ！","wrong":["天才やな","何年生の？","むずかしいのも？"],"act":"beam"},
-  {"id":"gyunyu","boke":"牛にゅう、毎日飲んでるで。においだけ。","right":"飲んでへんやないか！","wrong":["何本？","せのびた？","冷たいの？"],"act":"zukko"},
+  {"id":"kanji","boke":"かん字、全部書けるで。ひらがなで。","right":"それかん字ちゃうやろ！","wrong":["天才やな","何年生の？","むずかしいのも？"],"act":"paan"},
+  {"id":"gyunyu","boke":"牛にゅう、毎日飲んでるで。においだけ。","right":"飲んでへんやないか！","wrong":["何本？","せのびた？","冷たいの？"],"act":"kakato"},
   {"id":"sanpo","boke":"犬のさんぽ行ってきた。犬が行きたがらんから、ぼく一人で。","right":"それただのさんぽや！","wrong":["どこまで？","何分歩いた？","犬元気？"],"act":"oshiri"},
   {"id":"omise","boke":"お店やさんごっこで、売り上げ一位やったで。全部ぼくが買った。","right":"自分で買うな！","wrong":["何売ったん？","いくらもうけた？","えらいなあ"],"act":"kaiten"},
-  {"id":"ehon","boke":"妹に絵本読んであげてん。ぼくが先にねたけど。","right":"先にねるな！","wrong":["何の絵本？","妹何才？","やさしいなあ"],"act":"zukko"},
+  {"id":"ehon","boke":"妹に絵本読んであげてん。ぼくが先にねたけど。","right":"先にねるな！","wrong":["何の絵本？","妹何才？","やさしいなあ"],"act":"beam"},
   {"id":"medamayaki","boke":"目玉焼き作ったで。たまごを、からごと焼いた。","right":"わってから焼け！","wrong":["おいしかった？","何こ焼いた？","しょうゆかける？"],"act":"hataku"},
   {"id":"shojiki","boke":"ぼく、うそついたことないで。…これがはじめてのうそや。","right":"今ついたんかい！","wrong":["えらいなあ","正直やな","ほんまに？"],"act":"beam"},
-  {"id":"dodge","boke":"ドッジボール強いで。全部顔で受け止める。","right":"よけろ！","wrong":["何年やってる？","チームで一番？","いたくない？"],"act":"kick"},
+  {"id":"dodge","boke":"ドッジボール強いで。全部顔で受け止める。","right":"よけろ！","wrong":["何年やってる？","チームで一番？","いたくない？"],"act":"yokeru"},
   {"id":"obento","boke":"おべんとう、毎日自分で作ってるで。コンビニで。","right":"それ買ってるやないか！","wrong":["えらいなあ","何入れるん？","おいしい？"],"act":"oshiri"},
   {"id":"asagao","boke":"アサガオの観察日記、毎日書いてるで。夜に。","right":"しぼんでるやないか！","wrong":["何色の花？","何こさいた？","えらいなあ"],"act":"kaiten"},
   {"id":"nagareboshi","boke":"流れ星より速く、ねがいごと言えるで。","right":"どんな口や！","wrong":["何ねがったん？","見えた？","かなうとええな"],"act":"zutsuki"},
   {"id":"jihanki","boke":"じどうはんばいきで、ジュース買ってん。お金入れんと、ボタンおしまくった。","right":"出るわけないやろ！","wrong":["何味？","冷たかった？","何本買ったん？"],"act":"kakato"},
-  {"id":"tomodachi","boke":"友だち100人できたで。ゲームの中で。","right":"ほんまの友だち作り！","wrong":["すごいなあ","何のゲーム？","名前おぼえてる？"],"act":"kaiten"},
+  {"id":"tomodachi","boke":"友だち100人できたで。ゲームの中で。","right":"ほんまの友だち作り！","wrong":["すごいなあ","何のゲーム？","名前おぼえてる？"],"act":"beam"},
   {"id":"haburashi","boke":"歯みがき、10秒で終わるで。歯ブラシ見るだけ。","right":"みがいてへんやないか！","wrong":["速いなあ","何味の歯みがきこ？","何回みがく？"],"act":"zutsuki"},
-  {"id":"yoru","boke":"夜でも目が見えるで。電気をつけたら。","right":"それだれでも見えるわ！","wrong":["ネコみたいやな","何が見える？","ねむくない？"],"act":"beam"}
+  {"id":"yoru","boke":"夜でも目が見えるで。電気をつけたら。","right":"それだれでも見えるわ！","wrong":["ネコみたいやな","何が見える？","ねむくない？"],"act":"paan"}
 ];
 // キャラ。絵は img/chars/<id>/0〜15.webp
 //   0 立つ・1 口あけ・2 話す・3 手を広げる・4 はたく・5 ツッコミ波・6 かかと落とし・7 ふっとぶ
@@ -730,7 +737,7 @@ function tone(type, f0, f1, len, gain){
   o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+len+.02);
 }
 // 効果音は audio/sfx/<名前>.mp3（Epidemic Sound から。tools/README の「効果音」）。読めないときは鳴らさない
-const SFX = ['blast','boing','charge','cheer','crash','dog','fail','fall','fight','kick','laugh','missile','pop','rimshot','slap','spin','twinkle','whistle','whoosh'];
+const SFX = ['bigslap','blast','boing','charge','cheer','crash','dodge','dog','fail','fall','fight','kick','laugh','missile','paper','pop','rimshot','shock','slap','spin','storm','thunder','twinkle','whistle','whoosh'];
 const live = new Set();
 // 音のファイルを鳴らす。鳴りおわると解決する
 function play(url, vol){
@@ -769,8 +776,14 @@ function preloadSfx(){
   SFX.forEach(n => clip('audio/sfx/' + n + '.mp3'));
   ['x_tadaima', 'x_itai', 'x_uwaa'].forEach(n => clip('audio/' + save.boke + '/' + n + '.mp3'));
   clip('audio/' + save.tsu + '/x_goal.mp3');
-  ['dog_bite', 'dog_bark', 'dog_run', 'dust'].forEach(n => { new Image().src = 'img/props/' + n + '.webp'; });
+  ['dog_bite', 'dog_bark', 'dog_run', 'dog_sit', 'dust', 'hand', 'missile', 'thundercloud', 'bolt', 'explosion', 'bandage', 'sparks'].forEach(n => { new Image().src = 'img/props/' + n + '.webp'; });
+  ['street', 'stadium', 'storm'].forEach(n => { new Image().src = 'img/bg/' + n + '.webp'; });
+  // サッカーのキーパーは、ボケでもツッコミでもないキャラ
+  const ks = CHARS.filter(c => c.id !== save.boke && c.id !== save.tsu);
+  keeper = ks[Math.random() * ks.length | 0];
+  [0, 3, 7, 12].forEach(i => framesOf(keeper.id)[i]);
 }
+let keeper = null;
 
 let voiceSrc = null;
 function stopVoice(){ if(voiceSrc){ try{ voiceSrc.onended = null; voiceSrc.stop(); }catch(e){} voiceSrc = null; } }
@@ -846,9 +859,11 @@ addEventListener('resize', layout);
 function stopAll(){
   seq++; stopVoice(); stopSfx();
   [boke.el, boke.body, tsu.el, tsu.body, $('space'), $('spaceImg'), $('spaceImg2'), $('beam'), $('ball'), $('star'), $('kira'), $('flash'), $('mound'),
-   $('goal'), $('goalNet'), $('dog'), $('dust'), $('gooal')]
+   $('goal'), $('goalNet'), $('dog'), $('dust'), $('gooal'), $('scene'), boke.img, tsu.img]
     .forEach(el => el.getAnimations().forEach(a => a.cancel()));
   $('spaceImg2').removeAttribute('src');
+  temps.forEach(el => el.remove()); temps.length = 0;
+  boke.body.style.transformOrigin = '';
   boke.el.style.visibility = tsu.el.style.visibility = ''; boke.busy = tsu.busy = false; boke.frame(0); tsu.frame(0);
 }
 function setPair(){
@@ -902,18 +917,8 @@ const MOVES = {
     boke.el.style.visibility = 'hidden';
     A(tsu.el, [{transform:'translateX(' + dx + 'px)'},{transform:'translateX(0)'}], 300).then(() => { if(my === seq) tsu.frame(0); });
     if(my !== seq) return;
-    // うちゅうまで飛んでいく
-    const sp = $('space'), si = $('spaceImg'), c = boke.c, h = L.H * .3, w = h * c.w / c.h;
-    si.src = framesOf(c.id)[7].src; si.style.width = w + 'px'; si.style.height = h + 'px';
     $('bang').className = 'bang';
-    await A(sp, [{opacity:0},{opacity:1}], 300);
-    const ex = L.W * .62, ey = L.H * .22;
-    await A(si, [{transform:'translate(' + (L.W * .1) + 'px,' + (L.H * 1.05) + 'px) rotate(0) scale(1)'},
-                 {transform:'translate(' + (ex - w/2) + 'px,' + (ey - h/2) + 'px) rotate(-900deg) scale(.12)'}], { duration: 1500, easing: 'ease-out' });
-    if(my !== seq) return;
-    si.animate([{opacity:0}], { duration: 1, fill: 'forwards' });
-    twinkle(); star(ex, ey, 1.4); await kira('キラーン', ex, ey + L.H * .14);
-    await A(sp, [{opacity:1},{opacity:0}], 350);
+    await toSpace(my);
   },
   async beam(my, actOk){
     const hx = tsu.x - L.FH * .32, hy = L.floor - L.FH * .62;
@@ -961,15 +966,6 @@ const MOVES = {
     await A(tsu.el, [{transform:'translate(' + dx + 'px,0)'},{transform:'translate(' + dx*.5 + 'px,' + (-L.FH * .2) + 'px)', offset:.5},{transform:'translate(0,0)'}], 380);
     if(my !== seq) return;
     await kira('💫', boke.x, L.floor - (boke.c.neck - boke.c.top) * boke.ih * 1.1 + sink * 0);
-  },
-  async zukko(my, actOk){
-    tsu.frame(7); sfx('boing');
-    bangShow(actOk ? 'ずこーっ！' : 'ずこっ', !actOk);
-    await A(tsu.body, [{transform:'translateY(0) rotate(0)'},{transform:'translateY(' + (-L.FH * .15) + 'px) rotate(10deg)', offset:.35},{transform:'translateY(' + (L.FH * .08) + 'px) rotate(18deg)'}], { duration: 500, easing: 'ease-in' });
-    if(my !== seq) return;
-    thud(); shake(); if(actOk) burst();
-    boke.frame(3);
-    await sleep(900);
   },
   // おしりでアタック → 地球を一周 → 天井から落ちてくる
   async oshiri(my, actOk){
@@ -1030,25 +1026,46 @@ const MOVES = {
     A(tsu.el, [{transform:'translateX(' + dx + 'px)'},{transform:'translateX(0)'}], 400);
     if(my !== seq) return;
     $('bang').className = 'bang';
-    // 舞台の外で、犬とけんか
-    const fx = L.W * .12, fs = L.FH * .9, dust = $('dust'), dog = $('dog');
-    dust.src = 'img/props/dust.webp'; Object.assign(dust.style, { width: fs + 'px', height: fs + 'px', left: (fx - fs/2) + 'px', top: (L.floor - fs * .8) + 'px' });
-    const dh = L.FH * .55; dog.src = 'img/props/dog_bite.webp';
-    Object.assign(dog.style, { height: dh + 'px', width: (dh * 294 / 348) + 'px', left: (fx - dh * .1) + 'px', top: (L.floor - dh * 1.05) + 'px' });
+    // 近所の道まで飛んでいって、犬にかまれる（別のシーン）
+    await sceneOn('street');
+    if(my !== seq) return;
+    const F = S.F, fl = S.floor, lx = L.W * .62;
+    const b = tmpActor(boke.c, false, F, $('scene')); b.frame(7);
+    A(b.body, [{transform:'rotate(0)'},{transform:'rotate(-540deg)'}], 650);
+    await A(b.el, [{transform:tr(L.W + F, fl - L.H * .8)},{transform:tr(lx, fl)}], { duration: 650, easing: 'ease-in' });
+    if(my !== seq) return;
+    b.body.getAnimations().forEach(a => a.cancel());
+    thud(); dustAt(lx, fl, F * .6); b.frame(0);
+    await sleep(300); if(my !== seq) return;
+    kira('？', lx + F * .3, fl - F * 1.05);
+    // 犬が走ってくる
+    const dog = $('dog'), dust = $('dust'), dh = F * .42, dw = dogAs('run', dh);
+    sfx('dog');
+    await A(dog, [{opacity:1, transform:tr(-dw, fl - dh)},{opacity:1, transform:tr(lx - F * .5 - dw, fl - dh)}], { duration: 650, easing: 'ease-in' });
+    if(my !== seq) return;
+    // けんか
+    const fs = F * 1.1, fx = lx - F * .25;
+    dust.src = 'img/props/dust.webp'; Object.assign(dust.style, { width: fs + 'px', height: fs + 'px', left: (fx - fs/2) + 'px', top: (fl - fs * .85) + 'px' });
+    b.el.style.visibility = 'hidden';
+    const bh = F * .5, bw = dogAs('bite', bh), bx = fx - bw * .3, by = fl - F * .75;
     sfx('dog'); xvoice(boke, 'x_itai');
     [0, 650, 1300].forEach(t => setTimeout(() => { if(my === seq) sfx('fight', .8); }, t));
     A(dust, [{opacity:0, transform:'scale(.3)'},{opacity:1, transform:'scale(1.1)', offset:.1},{transform:'scale(.95) rotate(8deg)', offset:.3},{transform:'scale(1.08) rotate(-6deg)', offset:.5},{transform:'scale(.97) rotate(5deg)', offset:.7},{opacity:1, transform:'scale(1.05)', offset:.9},{opacity:0, transform:'scale(1.3)'}], 2400);
-    A(dog, [{opacity:0},{opacity:1, transform:'translate(0,0)', offset:.15},{transform:'translate(-14px,-10px)', offset:.3},{transform:'translate(10px,4px)', offset:.45},{transform:'translate(-8px,-12px)', offset:.6},{opacity:1, transform:'translate(6px,0)', offset:.8},{opacity:0, transform:'translate(0,0)'}], 2400);
-    kira('ガブッ！', fx + L.FH * .3, L.floor - L.FH * .95);
+    A(dog, [{opacity:0, transform:tr(bx, by)},{opacity:1, transform:tr(bx, by), offset:.15},{transform:tr(bx - 14, by - 10), offset:.3},{transform:tr(bx + 10, by + 4), offset:.45},{transform:tr(bx - 8, by - 12), offset:.6},{opacity:1, transform:tr(bx + 6, by), offset:.8},{opacity:0, transform:tr(bx, by)}], 2400);
+    kira('ガブッ！', fx + F * .45, fl - F * 1.0);
     await sleep(1300); if(my !== seq) return;
-    kira('ワンワン！', fx + L.FH * .35, L.floor - L.FH * 1.05);
-    await sleep(1200); if(my !== seq) return;
-    // ボロボロになって、とぼとぼ帰ってくる
-    boke.body.getAnimations().forEach(a => a.cancel());
-    boke.frame(12); boke.el.style.visibility = '';
-    boke.body.animate([{transform:'translateY(0) rotate(-3deg)'},{transform:'translateY(' + (-L.FH * .03) + 'px) rotate(3deg)'},{transform:'translateY(0) rotate(-3deg)'}], { duration: 700, iterations: reduce ? 1 : 3 });
-    setTimeout(() => { if(my === seq) xvoice(boke, 'x_tadaima'); }, 900);
-    await A(boke.el, [{transform:'translateX(' + (-boke.x - L.FH * .5) + 'px)'},{transform:'translateX(0)'}], { duration: 2100, easing: 'ease-out' });
+    kira('ワンワン！', fx + F * .4, fl - F * 1.15);
+    await sleep(1150); if(my !== seq) return;
+    // 犬はまんぞく。ボケはボロボロ
+    b.frame(12); b.el.style.visibility = ''; bandage(b);
+    const sh = F * .45, sw = dogAs('sit', sh);
+    dog.animate([{opacity:1, transform:tr(lx - F * .55 - sw, fl - sh)}], { duration: 1, fill: 'forwards' });
+    await sleep(1100); if(my !== seq) return;
+    await sceneOff();
+    if(my !== seq) return;
+    // ボロボロで、とぼとぼ帰ってくる
+    boke.frame(12); bandage(boke);
+    await walkBack(my);
     if(my !== seq) return;
     await kira('げっそり…', boke.x, L.floor - boke.ih * .95);
   },
@@ -1100,36 +1117,194 @@ const MOVES = {
     sfx('boing'); dustAt(tsu.x, L.floor, L.FH * .5); tsu.frame(0);
     await A(tsu.body, [{transform:'scaleY(.8)'},{transform:'scaleY(1)'}], 300);
   },
-  // 思いっきりけって、サッカーゴールへ → GOOOOL!!!!
+  // 思いっきりけって、サッカー場へ → キーパーが止めようとするけど止められず、GOOOOL!!!!
   async kick(my, actOk){
-    const g = $('goal'), gw = Math.min(L.W * .3, L.FH * .95), gh = L.FH * .82;
-    Object.assign(g.style, { width: gw + 'px', height: gh + 'px', left: (-gw * .08) + 'px', top: (L.floor - gh) + 'px' });
-    A(g, [{opacity:0, transform:'translateX(-100%)'},{opacity:1, transform:'translateX(0)'}], { duration: 350, easing: 'ease-out' });
-    sfx('whistle', .8);
     const dx = boke.x - tsu.x + L.FH * .42;
-    tsu.frame(13);
+    tsu.frame(13); sfx('whistle', .8);
     await A(tsu.el, [{transform:'translate(0,0)'},{transform:'translate(' + dx * .4 + 'px,' + (-L.FH * .05) + 'px)'},{transform:'translate(' + dx * .8 + 'px,0)'}], { duration: 500, easing: 'linear' });
     if(my !== seq) return;
     tsu.frame(11); sfx('kick');
     await A(tsu.el, [{transform:'translate(' + dx * .8 + 'px,0)'},{transform:'translate(' + dx + 'px,0)'}], 110);
     if(my !== seq) return;
     slap(true); shake(); bangShow(actOk ? 'ドカッ！' : 'ポコッ', !actOk); if(actOk) burst();
-    boke.frame(7); xvoice(boke, 'x_uwaa');
-    const tx = gw * .55 - boke.x, ty = -gh * .35;
-    A(boke.body, [{transform:'rotate(0) scale(1)'},{transform:'rotate(-1080deg) scale(.5)'}], { duration: 700, easing: 'ease-out' });
-    await A(boke.el, [{transform:'translate(0,0)'},{transform:'translate(' + tx * .5 + 'px,' + (ty - L.FH * .5) + 'px)', offset:.45},{transform:'translate(' + tx + 'px,' + ty + 'px)'}], { duration: 700, easing: 'linear' });
+    await flyOff();
+    tsu.frame(0); A(tsu.el, [{transform:'translateX(' + dx + 'px)'},{transform:'translateX(0)'}], 400);
     if(my !== seq) return;
     $('bang').className = 'bang';
+    // サッカー場（別のシーン）
+    await sceneOn('stadium', true);
+    if(my !== seq) return;
+    sfx('cheer', .3);
+    const F = S.F, fl = S.floor, g = $('goal'), gh = F * 1.1, gw = Math.min(L.W * .36, gh * 1.1);
+    Object.assign(g.style, { width: gw + 'px', height: gh + 'px', left: (-gw * .06) + 'px', top: (fl - gh) + 'px' });
+    g.animate([{opacity:1}], { duration: 1, fill: 'forwards' });
+    const k = tmpActor(keeper || CHARS.find(c => c.id !== boke.c.id && c.id !== tsu.c.id), false, F * .9, 'front');
+    const kx = gw * .62; k.frame(3); k.el.style.transform = tr(kx, fl);
+    k.body.animate([{transform:'translateY(0)'},{transform:'translateY(' + (-F * .04) + 'px)'},{transform:'translateY(0)'}], { duration: 320, iterations: 3 });
+    // ボケがボールみたいに飛んでくる
+    const b = tmpActor(boke.c, false, F * .5, $('scene')); b.frame(7);
+    const gx = gw * .38, gy = fl - gh * .5;
+    A(b.body, [{transform:'rotate(0)'},{transform:'rotate(-1440deg)'}], 1100);
+    setTimeout(() => {  // キーパーが飛びつく。でも、とどかない
+      if(my !== seq) return;
+      k.frame(7); whoosh();
+      A(k.el, [{transform:tr(kx, fl)},{transform:tr(kx + F * .1, fl - F * .3, 'rotate(-60deg)'), offset:.4},{transform:tr(kx + F * .3, fl, 'rotate(-90deg)')}], { duration: 700, easing: 'ease-out' })
+        .then(() => { if(my === seq){ k.frame(12); k.el.animate([{transform:tr(kx + F * .35, fl)}], { duration: 1, fill: 'forwards' }); } });
+    }, 550);
+    await A(b.el, [{transform:tr(L.W + F * .5, fl - F * 1.3)},{transform:tr(L.W * .55, fl - F * 1.45), offset:.4},{transform:tr(gx, gy)}], { duration: 1100, easing: 'linear' });
+    if(my !== seq) return;
     A($('goalNet'), [{transform:'translateX(0)'},{transform:'translateX(-10px) scale(1.04)', offset:.3},{transform:'translateX(0)'}], 450);
-    A(boke.el, [{transform:'translate(' + tx + 'px,' + ty + 'px)'},{transform:'translate(' + (tx - gw * .12) + 'px,' + ty + 'px)', offset:.3},{transform:'translate(' + tx + 'px,' + (ty + gh * .3) + 'px)'}], { duration: 600, easing: 'ease-in' });
+    A(b.el, [{transform:tr(gx, gy)},{transform:tr(gx - gw * .12, gy), offset:.3},{transform:tr(gx - gw * .05, fl - F * .05)}], { duration: 600, easing: 'ease-in' });
     // GOOOOL!!!! と大かんせい
-    sfx('cheer', .9); sfx('whistle');
+    sfx('cheer', .9); sfx('whistle'); xvoice(tsu, 'x_goal');
     $('gooal').style.fontSize = Math.round(L.W / 8) + 'px';
     A($('gooal'), [{opacity:0, transform:'translate(-50%,-50%) scale(.2) rotate(-12deg)'},{opacity:1, transform:'translate(-50%,-50%) scale(1.2) rotate(-6deg)', offset:.15},
       {transform:'translate(-50%,-50%) scale(1) rotate(-6deg)', offset:.3},{transform:'translate(-50%,-50%) scale(1.08) rotate(-6deg)', offset:.6},{opacity:1, transform:'translate(-50%,-50%) scale(1) rotate(-6deg)', offset:.9},{opacity:0, transform:'translate(-50%,-50%) scale(1) rotate(-6deg)'}], 2800);
-    tsu.frame(15); xvoice(tsu, 'x_goal');
-    tsu.body.animate([{transform:'translateY(0)'},{transform:'translateY(' + (-L.FH * .12) + 'px)'},{transform:'translateY(0)'}], { duration: 420, iterations: reduce ? 1 : 4, easing: 'ease-in-out' });
-    await sleep(2400);
+    await sleep(2600); if(my !== seq) return;
+    await sceneOff();
+    if(my !== seq) return;
+    // 舞台にもどって、ツッコミは大よろこび
+    tsu.frame(15);
+    await A(tsu.body, [{transform:'translateY(0)'},{transform:'translateY(' + (-L.FH * .12) + 'px)'},{transform:'translateY(0)'}], { duration: 420, iterations: reduce ? 1 : 3, easing: 'ease-in-out' });
+  },
+  // ツッコミの手が大きくなって、蚊をたたくみたいにパーン → ペラペラ
+  async paan(my, actOk){
+    tsu.frame(3); sfx('charge', .5);
+    const hh = L.FH * 1.1, hw = hh * 359 / 480, hy = L.floor - L.FH * .55 - hh / 2;
+    const hL = tmpImg('img/props/hand.webp', hw, hh), hR = tmpImg('img/props/hand.webp', hw, hh);
+    const ox = tsu.x - hw / 2, oy = L.floor - L.FH * 1.1 - hh / 2;
+    const pose = (x, y, left, sc) => tr(x, y, (left ? 'scaleX(-1) rotate(-12deg)' : 'rotate(-12deg)') + ' scale(' + sc + ')');
+    // ツッコミの手がぐんぐん大きくなる
+    A(hL, [{opacity:0, transform:pose(ox - hw * .3, oy, true, .15)},{opacity:1, transform:pose(ox - hw * .3, oy, true, 1)}], { duration: 550, easing: 'ease-out' });
+    await A(hR, [{opacity:0, transform:pose(ox + hw * .3, oy, false, .15)},{opacity:1, transform:pose(ox + hw * .3, oy, false, 1)}], { duration: 550, easing: 'ease-out' });
+    if(my !== seq) return;
+    // ボケの両がわへ
+    whoosh();
+    A(hL, [{transform:pose(ox - hw * .3, oy, true, 1)},{transform:pose(boke.x - hw * 1.25, hy, true, 1)}], { duration: 320, easing: 'ease-in-out' });
+    await A(hR, [{transform:pose(ox + hw * .3, oy, false, 1)},{transform:pose(boke.x + hw * .25, hy, false, 1)}], { duration: 320, easing: 'ease-in-out' });
+    if(my !== seq) return;
+    await sleep(150); if(my !== seq) return;
+    // パーン！
+    A(hL, [{transform:pose(boke.x - hw * 1.25, hy, true, 1)},{transform:pose(boke.x - hw * .93, hy, true, 1)}], { duration: 110, easing: 'ease-in' });
+    await A(hR, [{transform:pose(boke.x + hw * .25, hy, false, 1)},{transform:pose(boke.x - hw * .07, hy, false, 1)}], { duration: 110, easing: 'ease-in' });
+    if(my !== seq) return;
+    sfx('bigslap'); slap(true); shake(); bangShow(actOk ? 'パーン！' : 'ペチッ', !actOk); if(actOk) burst();
+    boke.body.animate([{transform:'scaleX(.06)'}], { duration: 1, fill: 'forwards' });
+    tsu.frame(0);
+    await sleep(450); if(my !== seq) return;
+    A(hL, [{opacity:1, transform:pose(boke.x - hw * .93, hy, true, 1)},{opacity:0, transform:pose(boke.x - hw * 1.6, hy - hh * .2, true, .8)}], 350);
+    A(hR, [{opacity:1, transform:pose(boke.x - hw * .07, hy, false, 1)},{opacity:0, transform:pose(boke.x + hw * .6, hy - hh * .2, false, .8)}], 350);
+    await sleep(250); if(my !== seq) return;
+    // ペラペラの紙になって、ひらひら落ちる
+    $('bang').className = 'bang';
+    boke.body.style.transformOrigin = '50% 100%';
+    sfx('paper', .9); setTimeout(() => { if(my === seq) sfx('paper', .6); }, 1100);
+    kira('ペラペラ～', boke.x, L.floor - L.FH * 1.2);
+    const P = 'perspective(900px) ';
+    A(boke.el, [{transform:'translate(0,0)'},{transform:tr(L.FH * .15, -L.FH * .45), offset:.2},{transform:tr(-L.FH * .15, -L.FH * .32), offset:.45},{transform:tr(L.FH * .12, -L.FH * .15), offset:.7},{transform:'translate(0,0)'}], { duration: 2200, easing: 'ease-in-out' });
+    await A(boke.body, [{transform:P + 'scaleX(.06)'},{transform:P + 'rotateY(70deg) rotate(8deg)', offset:.15},{transform:P + 'rotateY(-55deg) rotate(-10deg)', offset:.35},{transform:P + 'rotateY(60deg) rotate(8deg)', offset:.55},{transform:P + 'rotateY(-30deg) rotate(-5deg)', offset:.75},{transform:P + 'rotateY(0deg) rotateX(0deg)', offset:.88},{transform:P + 'rotateX(84deg)'}], 2200);
+    if(my !== seq) return;
+    sfx('paper', .4);
+    await sleep(500);
+  },
+  // 思いっきりけとばして、あらしの中へ → かみなりでビリビリ → げっそりして帰ってくる
+  async arashi(my, actOk){
+    const dx = boke.x - tsu.x + L.FH * .42;
+    tsu.frame(13);
+    await A(tsu.el, [{transform:'translate(0,0)'},{transform:'translate(' + dx * .8 + 'px,0)'}], { duration: 400, easing: 'linear' });
+    if(my !== seq) return;
+    tsu.frame(11); sfx('kick');
+    await A(tsu.el, [{transform:'translate(' + dx * .8 + 'px,0)'},{transform:'translate(' + dx + 'px,0)'}], 110);
+    if(my !== seq) return;
+    slap(true); shake(); bangShow(actOk ? 'ドカーン！' : 'ポコッ', !actOk); if(actOk) burst();
+    boke.frame(7); xvoice(boke, 'x_uwaa');
+    A(boke.body, [{transform:'rotate(0)'},{transform:'rotate(-900deg)'}], 800);
+    await A(boke.el, [{transform:'translate(0,0)'},{transform:tr(-boke.x * .4, -L.floor - L.FH)}], { duration: 800, easing: 'ease-out' });
+    boke.el.style.visibility = 'hidden';
+    tsu.frame(0); A(tsu.el, [{transform:'translateX(' + dx + 'px)'},{transform:'translateX(0)'}], 400);
+    if(my !== seq) return;
+    $('bang').className = 'bang';
+    // あらしの中（別のシーン）
+    await sceneOn('storm');
+    if(my !== seq) return;
+    sfx('storm', .9);
+    const F = S.F, cx = L.W * .5, fy = S.floor - F * .3;  // 空中でぐるぐる回る足もとの高さ
+    const cw = Math.min(L.W * .5, F * 1.1), ch = cw * 323 / 480, cy = L.H * .2;
+    const cloud = tmpImg('img/props/thundercloud.webp', cw, ch, $('scene'));
+    A(cloud, [{opacity:0, transform:tr(cx - cw / 2 + cw * .3, cy)},{opacity:1, transform:tr(cx - cw / 2, cy)}], { duration: 800, fill: 'forwards' });
+    const b = tmpActor(boke.c, false, F * .8, $('scene')); b.frame(7);
+    A(b.body, [{transform:'rotate(0)'},{transform:'rotate(-1080deg)'}], 1600);
+    await A(b.el, [{transform:tr(L.W + F, fy - F * .4)},{transform:tr(L.W * .75, fy - F * .6), offset:.3},{transform:tr(L.W * .25, fy - F * .3), offset:.65},{transform:tr(cx, fy)}], { duration: 1600, easing: 'ease-in-out' });
+    if(my !== seq) return;
+    b.body.getAnimations().forEach(a => a.cancel());
+    // ピシャーン！
+    const top = cy + ch * .7, bot = fy - F * .6, bh = Math.max(F * .5, bot - top), bw = bh * 166 / 480;
+    const bolt = tmpImg('img/props/bolt.webp', bw, bh, $('scene'));
+    bolt.style.transform = tr(cx - bw / 2, top);
+    sfx('thunder'); sfx('shock', .9);
+    A(bolt, [{opacity:0},{opacity:1, offset:.05},{opacity:.2, offset:.15},{opacity:1, offset:.25},{opacity:1, offset:.8},{opacity:0}], { duration: 1400, fill: 'forwards' });
+    A($('flash'), [{opacity:0},{opacity:.85, offset:.08},{opacity:0, offset:.2},{opacity:.6, offset:.3},{opacity:0}], 900);
+    shake(); bangShow(actOk ? 'ピシャーン！' : 'ピリッ', true);
+    const sw = F * .9, sh = sw * 408 / 337;
+    const spk = tmpImg('img/props/sparks.webp', sw, sh, $('scene')); spk.style.transform = tr(cx - sw / 2, fy - F * .85 - sh * .2);
+    A(spk, [{opacity:0},{opacity:1},{opacity:0},{opacity:1},{opacity:0}], { duration: 320, iterations: reduce ? 1 : 4 });
+    A(b.img, [{filter:'none'},{filter:'invert(1) brightness(1.6)'},{filter:'none'}], { duration: 160, iterations: reduce ? 1 : 8 });
+    setTimeout(() => { if(my === seq){ xvoice(boke, 'x_itai'); kira('ビリビリ！', cx, fy - F * 1.05); } }, 250);
+    await A(b.body, [{transform:'translate(0,0)'},{transform:'translate(-7px,3px)'},{transform:'translate(6px,-4px)'},{transform:'translate(0,0)'}], { duration: 160, iterations: reduce ? 1 : 8 });
+    if(my !== seq) return;
+    // 黒こげで、地面に落ちる
+    $('bang').className = 'bang';
+    b.frame(12); b.img.animate([{filter:'brightness(.45) sepia(.5)'}], { duration: 1, fill: 'forwards' });
+    await A(b.el, [{transform:tr(cx, fy)},{transform:tr(cx, S.floor)}], { duration: 420, easing: 'ease-in' });
+    if(my !== seq) return;
+    thud(); dustAt(cx, S.floor, F * .7);
+    kira('プスプス…', cx, S.floor - F * 1.05);
+    await sleep(1400); if(my !== seq) return;
+    await sceneOff();
+    if(my !== seq) return;
+    boke.img.animate([{filter:'brightness(.5) sepia(.5)'}], { duration: 1, fill: 'forwards' });
+    await walkBack(my);
+    if(my !== seq) return;
+    await kira('げっそり…', boke.x, L.floor - boke.ih * .95);
+  },
+  // はたこうとしたら、ひらりとよけられる → でも、ミサイルに当たってうちゅうへ
+  async yokeru(my, actOk){
+    const dx = boke.x - tsu.x + L.FH * .42, far = dx + L.FH * .35;
+    tsu.frame(4); whoosh();
+    boke.frame(3); sfx('dodge'); sfx('boing', .5);
+    A(boke.body, [{transform:'rotate(0)'},{transform:'rotate(-360deg)'}], { duration: 650, easing: 'ease-in-out' });
+    A(boke.el, [{transform:'translateY(0)', easing:'ease-out'},{transform:'translateY(' + (-L.FH * .95) + 'px)', offset:.5, easing:'ease-in'},{transform:'translateY(0)'}], 720);
+    await A(tsu.el, [{transform:'translateX(0)'},{transform:'translateX(' + far + 'px)'}], { duration: 300, easing: 'ease-in', delay: 80 });
+    if(my !== seq) return;
+    bangShow('スカッ', true);
+    A(tsu.body, [{transform:'rotate(0)'},{transform:'rotate(14deg)'},{transform:'rotate(0)'}], 400);
+    await sleep(380); if(my !== seq) return;
+    // 華麗に着地して、きめポーズ
+    boke.frame(15); twinkle();
+    kira('ひらり～', boke.x, L.floor - L.FH * 1.1);
+    A(tsu.el, [{transform:'translateX(' + far + 'px)'},{transform:'translateX(0)'}], 450).then(() => { if(my === seq) tsu.frame(0); });
+    await sleep(900); if(my !== seq) return;
+    // ミサイルが飛んでくる
+    $('bang').className = 'bang';
+    const mh = L.FH * .3, mw = mh * 480 / 269, y0 = L.floor - L.FH * .55 - mh / 2;
+    const mis = tmpImg('img/props/missile.webp', mw, mh);
+    sfx('missile');
+    kira('！', boke.x + L.FH * .15, L.floor - L.FH * 1.15);
+    await A(mis, [{transform:tr(-mw * 1.2, y0 - L.FH * .25, 'scaleX(-1) rotate(26deg)')},{transform:tr(boke.x - mw * .85, y0, 'scaleX(-1) rotate(26deg)')}], { duration: 700, easing: 'ease-in' });
+    if(my !== seq) return;
+    mis.remove();
+    const eh = L.FH * .95, ew = eh * 480 / 462, e0 = tr(boke.x - ew / 2, L.floor - L.FH * .55 - eh / 2);
+    const ex = tmpImg('img/props/explosion.webp', ew, eh);
+    zap(); thud(); shake(); A($('flash'), [{opacity:0},{opacity:.7, offset:.15},{opacity:0}], 500);
+    bangShow(actOk ? 'ドカーン！' : 'ボカン', !actOk); if(actOk) burst();
+    A(ex, [{opacity:1, transform:e0 + ' scale(.3)'},{opacity:1, transform:e0 + ' scale(1.15)', offset:.3},{opacity:0, transform:e0 + ' scale(1.35)'}], { duration: 900, fill: 'forwards' });
+    boke.frame(7); xvoice(boke, 'x_uwaa');
+    A(boke.body, [{transform:'rotate(0)'},{transform:'rotate(-720deg)'}], 750);
+    await A(boke.el, [{transform:'translate(0,0)'},{transform:tr(L.W * .15, -L.H * 1.3)}], { duration: 750, easing: 'cubic-bezier(.3,.6,.6,1)' });
+    boke.el.style.visibility = 'hidden';
+    if(my !== seq) return;
+    $('bang').className = 'bang';
+    await toSpace(my);
   }
 };
 // ほこりのけむり（落ちたとき）
@@ -1137,6 +1312,82 @@ function dustAt(x, y, size){
   const d = $('dust'); d.src = 'img/props/dust.webp';
   Object.assign(d.style, { width: size + 'px', height: size + 'px', left: (x - size/2) + 'px', top: (y - size * .7) + 'px' });
   return A(d, [{opacity:.9, transform:'scale(.3)'},{opacity:.8, transform:'scale(1)', offset:.4},{opacity:0, transform:'scale(1.3)'}], 800);
+}
+// ---- 別のシーン（住宅街・サッカー場・あらし） ----
+const temps = [];  // 動きの間だけ出す絵。stopAll で消す
+const BG = { street: .1, stadium: .14, storm: .1 };  // 絵の下のはしから、足もとまでの高さ（絵の高さに対して）
+let S = { floor: 0, F: 0 };
+const tr = (x, y, more) => 'translate(' + x + 'px,' + y + 'px)' + (more ? ' ' + more : '');
+function sceneOn(name, mirror){
+  const bg = $('sceneBg'); bg.style.backgroundImage = 'url(img/bg/' + name + '.webp)'; bg.style.transform = mirror ? 'scaleX(-1)' : '';
+  const ih = Math.max(L.H, L.W * 956 / 1280);  // 絵は下にそろえて、はみ出す分は切る
+  S = { floor: L.H - ih * BG[name], F: L.FH * .8 };
+  return A($('scene'), [{opacity:1, clipPath:'circle(0% at 50% 50%)'},{opacity:1, clipPath:'circle(75% at 50% 50%)'}], { duration: 450, easing: 'ease-in' });
+}
+async function sceneOff(){
+  [$('dog'), $('dust')].forEach(el => el.getAnimations().forEach(a => a.cancel()));
+  await A($('scene'), [{opacity:1, clipPath:'circle(75% at 50% 50%)'},{opacity:1, clipPath:'circle(0% at 50% 50%)'}], { duration: 400, easing: 'ease-out' });
+  $('stage').querySelectorAll('#scene .tmp, .tmp[data-sc]').forEach(el => el.remove());
+  [$('goal'), $('goalNet')].forEach(el => el.getAnimations().forEach(a => a.cancel()));
+}
+// 動きの間だけ出す絵。parent がないときは舞台のいちばん前。'front' はシーンの前（シーンが終わると消える）
+function tmpImg(src, w, h, parent){
+  const im = new Image(); im.src = src; im.alt = ''; im.className = 'tmp';
+  im.style.width = w + 'px'; im.style.height = h + 'px';
+  if(parent === 'front') im.dataset.sc = 1;
+  if(!parent || parent === 'front'){ im.style.zIndex = 1; parent = $('stage'); }
+  parent.appendChild(im); temps.push(im); return im;
+}
+// シーンの中のキャラ。F は足もとから頭までの高さ。el の transform で足もとの場所を決める
+function tmpActor(c, flip, F, parent){
+  const el = document.createElement('div'); el.className = 'actor tmp' + (flip ? ' flip' : '');
+  el.innerHTML = '<div class="body"><img alt=""></div>';
+  if(parent === 'front') el.dataset.sc = 1;
+  if(!parent || parent === 'front'){ el.style.zIndex = 1; parent = $('stage'); }
+  parent.appendChild(el); temps.push(el);
+  const a = makeActor(el, flip); a.c = c; a.s = F / ((c.foot - c.top) * c.h); a.ih = c.h * a.s; a.frame(0);
+  return a;
+}
+// 頭にばんそうこう
+function bandage(a, parent){
+  const b = boxOf(a.c, a.cur, a.s, a.flip), w = b.h * .17;
+  const im = tmpImg('img/props/bandage.webp', w, w * 437 / 438, parent || a.el);
+  im.style.zIndex = ''; im.style.transform = tr(b.l + b.w * .5 + w * .05, b.t + b.h * .01, 'rotate(-12deg)');
+  return im;
+}
+const DOG = { run: [337, 227], bite: [294, 348], bark: [295, 322], sit: [243, 338] };
+function dogAs(name, h){
+  const d = $('dog'), [w0, h0] = DOG[name]; d.src = 'img/props/dog_' + name + '.webp';
+  Object.assign(d.style, { left: '0px', top: '0px', height: h + 'px', width: (h * w0 / h0) + 'px' });
+  return h * w0 / h0;
+}
+// ボケが左へふっとぶ
+async function flyOff(){
+  boke.frame(7); xvoice(boke, 'x_uwaa');
+  A(boke.body, [{transform:'rotate(0)'},{transform:'rotate(-720deg)'}], 700);
+  await A(boke.el, [{transform:'translate(0,0)'},{transform:tr(-boke.x * .5, -L.FH * .7), offset:.5},{transform:tr(-boke.x - L.FH, -L.FH * .2)}], { duration: 700, easing: 'linear' });
+  boke.el.style.visibility = 'hidden';
+}
+// ボロボロになって、とぼとぼ帰ってくる
+async function walkBack(my){
+  boke.body.getAnimations().forEach(a => a.cancel());
+  boke.frame(12); boke.el.style.visibility = '';
+  boke.body.animate([{transform:'translateY(0) rotate(-3deg)'},{transform:'translateY(' + (-L.FH * .03) + 'px) rotate(3deg)'},{transform:'translateY(0) rotate(-3deg)'}], { duration: 700, iterations: reduce ? 1 : 3 });
+  setTimeout(() => { if(my === seq) xvoice(boke, 'x_tadaima'); }, 900);
+  await A(boke.el, [{transform:'translateX(' + (-boke.x - L.FH * .5) + 'px)'},{transform:'translateX(0)'}], { duration: 2100, easing: 'ease-out' });
+}
+// うちゅうまで飛んでいって、キラーン
+async function toSpace(my){
+  const sp = $('space'), si = $('spaceImg'), c = boke.c, h = L.H * .3, w = h * c.w / c.h;
+  si.src = framesOf(c.id)[7].src; si.style.width = w + 'px'; si.style.height = h + 'px';
+  await A(sp, [{opacity:0},{opacity:1}], 300);
+  const ex = L.W * .62, ey = L.H * .22;
+  await A(si, [{transform:'translate(' + (L.W * .1) + 'px,' + (L.H * 1.05) + 'px) rotate(0) scale(1)'},
+               {transform:'translate(' + (ex - w/2) + 'px,' + (ey - h/2) + 'px) rotate(-900deg) scale(.12)'}], { duration: 1500, easing: 'ease-out' });
+  if(my !== seq) return;
+  si.animate([{opacity:0}], { duration: 1, fill: 'forwards' });
+  twinkle(); star(ex, ey, 1.4); await kira('キラーン', ex, ey + L.H * .14);
+  await A(sp, [{opacity:1},{opacity:0}], 350);
 }
 
 function hud(){
