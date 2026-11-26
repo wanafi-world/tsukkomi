@@ -1,5 +1,5 @@
 # ElevenLabs で「[long pause]」をはさんでまとめて読ませた音声を、1セリフずつに切る
-# 使い方: python3 tools/split_voice.py <音声.mp3> <キャラid> <boke|right|wrong> [words.json]
+# 使い方: python3 tools/split_voice.py <音声.mp3> <キャラid> <boke|right|wrong|セリフ一覧.json> [words.json]
 #   セリフの間に無音がないときは、ElevenLabs の文字起こし（words.json）の「。？！」の時刻も切る候補にする
 #   無音のすき間から「セリフ数-1」か所を選んで切る（すき間の長さと、文字数から見た長さの近さで決める）
 #   → audio/<id>/ に b_*.mp3 / r_*.mp3 / w_*_0..2.mp3
@@ -9,10 +9,12 @@ src, cid, kind = sys.argv[1:4]
 words = json.load(open(sys.argv[4]))['words'] if len(sys.argv) > 4 else None
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 neta = json.load(open(os.path.join(root, 'tools', 'neta.json'), encoding='utf8'))
-if kind == 'boke': items = [('b_' + n['id'], n['boke']) for n in neta]
+if kind.endswith('.json'): items = [tuple(x) for x in json.load(open(kind, encoding='utf8'))]  # [[ファイル名, セリフ], ...]
+elif kind == 'boke': items = [('b_' + n['id'], n['boke']) for n in neta]
 elif kind == 'right': items = [('r_' + n['id'], n['right']) for n in neta]
 else: items = [(f"w_{n['id']}_{k}", w) for n in neta for k, w in enumerate(n['wrong'])]
 N = len(items)
+GAPW = float(os.environ.get('GAPW', '0.6'))  # 長い無音ほど切れ目にしやすくする強さ
 SR = 16000
 pcm = subprocess.run(['ffmpeg', '-loglevel', 'error', '-i', src, '-ac', '1', '-ar', str(SR), '-f', 's16le', '-'],
                      capture_output=True, check=True).stdout
@@ -21,8 +23,9 @@ hop = SR // 100  # 10ms
 rms = np.sqrt(np.convolve(x**2, np.ones(hop*2)/(hop*2), 'same')[::hop] + 1e-12)
 db = 20*np.log10(rms)
 floor, peak = np.percentile(db, 10), np.percentile(db, 98)
+VOICE_DB = os.environ.get('VOICE_DB')  # 声の下に雑音がある声は、声とみなす大きさ（dB、例 -30）を決めうちする
 def find_gaps(th, minlen):
-    voiced = db > floor + (peak - floor) * th
+    voiced = db > (float(VOICE_DB) if VOICE_DB else floor + (peak - floor) * th)
     gaps = []; i = 0; T = len(voiced)
     while i < T:
         if not voiced[i]:
@@ -120,7 +123,7 @@ for k in range(1, N):
         if k == N-1 and g != G: continue
         if k < N-1 and g == G: continue
         end = tail if g == G else gaps[g][0]
-        bonus = 0 if g == G else -0.6*(gaps[g][1]-gaps[g][0])
+        bonus = 0 if g == G else -GAPW*(gaps[g][1]-gaps[g][0])
         for p in range(g):
             if best[k-1][p] >= INF: continue
             v = best[k-1][p] + seg_cost(k, gaps[p][1], end) + bonus
