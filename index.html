@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>なんでやねん道場</title>
-<meta name="tsukkomi-build" content="20261127-0830">
+<meta name="tsukkomi-build" content="20261127-0907">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -17,8 +17,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
 <script src="lib/firebase-app-compat.js"></script>
 <script src="lib/firebase-database-compat.js"></script>
-<script src="firebase-config.js?v=20261127-0830"></script>
-<script src="fb-shim.js?v=20261127-0830"></script>
+<script src="firebase-config.js?v=20261127-0907"></script>
+<script src="fb-shim.js?v=20261127-0907"></script>
 <style>
 /* 漫才の舞台。左に金びょうぶとセンターマイクの前に立つボケ、右にツッコミを選ぶ札。たて画面では上下に積む */
 :root{
@@ -718,9 +718,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // 音（タップのあとにだけ鳴らす）
-// 音の道：声（voiceBus）と効果音（sfxBus）→ リミッター。声の間は効果音を小さくする
+// 音の道：声（voiceBus）と効果音（sfxBus）→ リミッター。声（セリフ・さけび声）の間は効果音を小さくする
+// 大きさの決まり（README「音の大きさ」）：セリフ −16 LUFS ＞ さけび声（セリフの 0.6 倍）＞ 効果音（ファイルは −18 LUFS、× SFX_VOL × 1つずつの倍率）
 let ac = null, sfxBus = null, voiceBus = null;
-const SFX_VOL = .55, SFX_DUCK = .22;
+const VOICE_LUFS = -16, SHOUT = .6, SFX_VOL = .5, SFX_DUCK = .25;
 function audio(){
   if(!ac){ try{ ac = new (window.AudioContext||window.webkitAudioContext)();
     const lim = ac.createDynamicsCompressor(); lim.threshold.value = -6; lim.knee.value = 4; lim.ratio.value = 12; lim.attack.value = .003; lim.release.value = .15; lim.connect(ac.destination);
@@ -728,15 +729,42 @@ function audio(){
     voiceBus = ac.createGain(); voiceBus.connect(lim); }catch(e){} }
   if(ac && ac.state === 'suspended') ac.resume(); return ac;
 }
-function duck(on){ if(!sfxBus) return; sfxBus.gain.setTargetAtTime(on ? SFX_DUCK : SFX_VOL, ac.currentTime, on ? .03 : .25); }
-// 声ファイルの大きさがキャラごとにちがうので、同じくらいの大きさにそろえる倍率
+// 声が出ている間（sec 秒）効果音を小さくする。声が重なったら、長いほうが終わるまで。duck(0) ですぐもどす
+let duckEnd = 0, duckTimer = 0;
+function duck(sec){
+  if(!sfxBus) return; const t = ac.currentTime; clearTimeout(duckTimer);
+  if(sec > 0){
+    if(duckEnd <= t) sfxBus.gain.setTargetAtTime(SFX_DUCK, t, .03);
+    duckEnd = Math.max(duckEnd, t + sec); duckTimer = setTimeout(() => duck(0), (duckEnd - t) * 1000);
+  }else{ duckEnd = 0; sfxBus.gain.setTargetAtTime(SFX_VOL, t, .25); }
+}
+// 声の大きさをそろえる倍率。人の耳に合わせたはかり方（ITU-R BS.1770：K フィルター・0.4 秒ごと・静かなところは数えない）で
+// ファイルごとの大きさ（LUFS）をはかって、VOICE_LUFS に合わせる。tools/loudness.py と同じはかり方
 const louds = new WeakMap();
 function loud(buf){
   if(!louds.has(buf)){
-    const d = buf.getChannelData(0); let e = 0, n = 0;
-    for(let i = 0; i < d.length; i += 4){ const v = d[i]; if(v > .02 || v < -.02){ e += v*v; n++; } }  // 無音のところは数えない
-    const rms = n ? Math.sqrt(e / n) : .2;
-    louds.set(buf, Math.min(3, Math.max(.6, .22 / rms)));
+    const d = buf.getChannelData(0), sr = buf.sampleRate;
+    // フィルターその1：1500 Hz から上を 4 dB 強くする。その2：38 Hz から下を切る
+    const A = Math.pow(10, 4 / 40); let w = 2 * Math.PI * 1500 / sr, c = Math.cos(w), al = Math.sin(w) / Math.SQRT2, a0 = (A+1) - (A-1)*c + 2*Math.sqrt(A)*al;
+    const s = [A*((A+1) + (A-1)*c + 2*Math.sqrt(A)*al) / a0, -2*A*((A-1) + (A+1)*c) / a0, A*((A+1) + (A-1)*c - 2*Math.sqrt(A)*al) / a0, 2*((A-1) - (A+1)*c) / a0, ((A+1) - (A-1)*c - 2*Math.sqrt(A)*al) / a0];
+    w = 2 * Math.PI * 38 / sr; c = Math.cos(w); al = Math.sin(w); a0 = 1 + al;
+    const h = [(1+c) / 2 / a0, -(1+c) / a0, (1+c) / 2 / a0, -2*c / a0, (1-al) / a0];
+    const hop = Math.round(sr * .1), pw = []; let e = 0, pk = 0, x1 = 0, x2 = 0, y1 = 0, y2 = 0, u1 = 0, u2 = 0, v1 = 0, v2 = 0;
+    for(let i = 0; i < d.length; i++){
+      const x = d[i], y = s[0]*x + s[1]*x1 + s[2]*x2 - s[3]*y1 - s[4]*y2; x2 = x1; x1 = x; y2 = y1; y1 = y;
+      const v = h[0]*y + h[1]*u1 + h[2]*u2 - h[3]*v1 - h[4]*v2; u2 = u1; u1 = y; v2 = v1; v1 = v;
+      e += v*v; if(x > pk) pk = x; else if(-x > pk) pk = -x;
+      if((i+1) % hop === 0){ pw.push(e / hop); e = 0; }
+    }
+    // 0.4 秒（0.1 秒 × 4）ごとの大きさ。0.4 秒より短い音は、全部で1つ
+    const m = []; for(let i = 0; i + 4 <= pw.length; i++) m.push((pw[i] + pw[i+1] + pw[i+2] + pw[i+3]) / 4);
+    if(!m.length) m.push((pw.reduce((a, b) => a + b, 0) * hop + e) / (4 * hop));
+    const mean = a => a.reduce((x, y) => x + y, 0) / a.length, QUIET = Math.pow(10, (-70 + .691) / 10);
+    let g = m.filter(p => p > QUIET);                                                        // 無音は数えない
+    if(g.length){ const th = Math.max(QUIET, mean(g) / 10); g = m.filter(p => p > th); }      // 平均より 10 dB 小さいところも数えない
+    const lufs = g.length ? -.691 + 10 * Math.log10(mean(g)) : VOICE_LUFS;
+    // 上げすぎ・下げすぎをしない。山が 1.3 をこえるほどは上げない（こえた分はリミッターがおさえる）
+    louds.set(buf, Math.max(.2, Math.min(8, 1.3 / Math.max(pk, .01), Math.pow(10, (VOICE_LUFS - lufs) / 20))));
   }
   return louds.get(buf);
 }
@@ -765,19 +793,20 @@ function play(url, vol, dest){
   return clip(url).then(buf => {
     const a = audio(); if(!buf || !a) return;
     const src = a.createBufferSource(), g = a.createGain(); src.buffer = buf; g.gain.value = (vol == null ? 1 : vol) * (dest === voiceBus ? loud(buf) : 1);
-    src.connect(g); g.connect(dest || sfxBus); src.start(); live.add(src);
+    src.connect(g); g.connect(dest || sfxBus); src.start(); live.add(src); if(dest === voiceBus) duck(buf.duration);
     return new Promise(r => { src.onended = () => { live.delete(src); r(); }; });
   });
 }
-const sfx = (name, vol) => play('audio/sfx/' + name + '.mp3', vol);
+const SFX_V = '2';  // 効果音ファイルを作りなおしたら上げる（iPad に古い音が残らないように）
+const sfx = (name, vol) => play('audio/sfx/' + name + '.mp3?v=' + SFX_V, vol);
 function stopSfx(){ live.forEach(s => { try{ s.onended = null; s.stop(); }catch(e){} }); live.clear(); }
 // キャラの演出の声（x_tadaima など）。口は動かさない
-const xvoice = (A, name) => play('audio/' + A.c.id + '/' + name + '.mp3', .5, voiceBus);  // さけび声は大きく聞こえるので、セリフの半分くらい
-function slap(strong){ sfx('slap', strong ? 1 : .6); tone('sine', strong ? 160 : 120, 50, .18, strong ? .6 : .3); }
-const boo = () => sfx('fail', .7);
+const xvoice = (A, name) => play('audio/' + A.c.id + '/' + name + '.mp3', SHOUT, voiceBus);  // さけび声はびっくりしやすいので、セリフより小さく。この間も効果音は小さくなる
+function slap(strong){ sfx('slap', strong ? 1 : .6); tone('sine', strong ? 160 : 120, 50, .18, strong ? .45 : .25); }
+const boo = () => sfx('fail', .6);
 const whoosh = () => sfx('whoosh');
-const thud = () => { sfx('crash', .8); tone('sine', 90, 35, .3, .8); };
-const zap = () => sfx('blast', .8);
+const thud = () => { sfx('crash', .8); tone('sine', 90, 35, .3, .5); };
+const zap = () => sfx('blast', .7);
 const twinkle = () => sfx('twinkle', .7);
 
 // 声：はじめて使うときに読みこむ。読めなかったら声なしで口だけ動かす
@@ -794,7 +823,7 @@ const bokeUrl = n => 'audio/' + save.boke + '/b_' + n.id + '.mp3';
 const lineUrl = (n, t) => 'audio/' + save.tsu + '/' + (t === n.right ? 'r_' + n.id : 'w_' + n.id + '_' + n.wrong.indexOf(t)) + '.mp3';
 function preloadRound(n){ if(!n) return; clip(bokeUrl(n)); clip(lineUrl(n, n.right)); n.wrong.forEach(t => clip(lineUrl(n, t))); }
 function preloadSfx(){
-  SFX.forEach(n => clip('audio/sfx/' + n + '.mp3'));
+  SFX.forEach(n => clip('audio/sfx/' + n + '.mp3?v=' + SFX_V));
   ['x_tadaima', 'x_itai', 'x_uwaa'].forEach(n => clip('audio/' + save.boke + '/' + n + '.mp3'));
   clip('audio/' + save.tsu + '/x_goal.mp3');
   ['dog_bite', 'dog_bark', 'dog_run', 'dog_sit', 'dust', 'hand', 'missile', 'thundercloud', 'bolt', 'explosion', 'bandage', 'sparks'].forEach(n => { new Image().src = 'img/props/' + n + '.webp'; });
@@ -807,7 +836,7 @@ function preloadSfx(){
 let keeper = null;
 
 let voiceSrc = null;
-function stopVoice(){ if(voiceSrc){ try{ voiceSrc.onended = null; voiceSrc.stop(); }catch(e){} voiceSrc = null; } duck(false); }
+function stopVoice(){ if(voiceSrc){ try{ voiceSrc.onended = null; voiceSrc.stop(); }catch(e){} voiceSrc = null; } duck(0); }
 // しゃべる。声の大きさで口をあけしめする。face(open, t) がコマ番号を返す
 async function speak(actor, url, text, face, my){
   stopVoice();
@@ -820,7 +849,7 @@ async function speak(actor, url, text, face, my){
     const src = a.createBufferSource(); src.buffer = buf;
     an = a.createAnalyser(); an.fftSize = 512; data = new Uint8Array(an.fftSize);
     const g = a.createGain(); g.gain.value = loud(buf);
-    src.connect(an); an.connect(g); g.connect(voiceBus); src.start(); voiceSrc = src; duck(true);
+    src.connect(an); an.connect(g); g.connect(voiceBus); src.start(); voiceSrc = src; duck(buf.duration);
   }
   const t0 = performance.now();
   await new Promise(done => {
@@ -839,7 +868,7 @@ async function speak(actor, url, text, face, my){
       requestAnimationFrame(tick);
     })(t0);
   });
-  if(voiceSrc && my === seq){ voiceSrc = null; duck(false); }
+  if(voiceSrc && my === seq) voiceSrc = null;
 }
 
 // ---- キャラ（舞台の上の人） ----
@@ -1024,7 +1053,7 @@ const MOVES = {
     // 天井から、さかさまに落ちてくる
     boke.body.getAnimations().forEach(a => a.cancel());
     boke.frame(14); boke.el.style.visibility = '';
-    sfx('fall', .8);
+    sfx('fall', .65);
     await A(boke.el, [{transform:'translateY(' + (-L.floor - boke.ih) + 'px)'},{transform:'translateY(0)'}], { duration: 1300, easing: 'cubic-bezier(.55,0,1,1)' });
     if(my !== seq) return;
     thud(); shake(); dustAt(boke.x, L.floor, L.FH * .8); bangShow('ドスーン！', !actOk);
@@ -1062,7 +1091,7 @@ const MOVES = {
     kira('？', lx + F * .3, fl - F * 1.05);
     // 犬が走ってくる
     const dog = $('dog'), dust = $('dust'), dh = F * .42, dw = dogAs('run', dh);
-    sfx('dog');
+    sfx('dog', .8);
     await A(dog, [{opacity:1, transform:tr(-dw, fl - dh)},{opacity:1, transform:tr(lx - F * .5 - dw, fl - dh)}], { duration: 650, easing: 'ease-in' });
     if(my !== seq) return;
     // けんか
@@ -1070,7 +1099,7 @@ const MOVES = {
     dust.src = 'img/props/dust.webp'; Object.assign(dust.style, { width: fs + 'px', height: fs + 'px', left: (fx - fs/2) + 'px', top: (fl - fs * .85) + 'px' });
     b.el.style.visibility = 'hidden';
     const bh = F * .5, bw = dogAs('bite', bh), bx = fx - bw * .3, by = fl - F * .75;
-    sfx('dog'); xvoice(boke, 'x_itai');
+    sfx('dog', .8); xvoice(boke, 'x_itai');
     [0, 650, 1300].forEach(t => setTimeout(() => { if(my === seq) sfx('fight', .8); }, t));
     A(dust, [{opacity:0, transform:'scale(.3)'},{opacity:1, transform:'scale(1.1)', offset:.1},{transform:'scale(.95) rotate(8deg)', offset:.3},{transform:'scale(1.08) rotate(-6deg)', offset:.5},{transform:'scale(.97) rotate(5deg)', offset:.7},{opacity:1, transform:'scale(1.05)', offset:.9},{opacity:0, transform:'scale(1.3)'}], 2400);
     A(dog, [{opacity:0, transform:tr(bx, by)},{opacity:1, transform:tr(bx, by), offset:.15},{transform:tr(bx - 14, by - 10), offset:.3},{transform:tr(bx + 10, by + 4), offset:.45},{transform:tr(bx - 8, by - 12), offset:.6},{opacity:1, transform:tr(bx + 6, by), offset:.8},{opacity:0, transform:tr(bx, by)}], 2400);
@@ -1094,7 +1123,7 @@ const MOVES = {
   // ミサイルみたいに頭つき → 2人いっしょにうちゅうへ
   async zutsuki(my, actOk){
     const dx = boke.x - tsu.x + L.FH * .45, lift = -L.FH * .35;
-    tsu.frame(10); sfx('missile');
+    tsu.frame(10); sfx('missile', .85);
     A(tsu.body, [{transform:'translateY(0)'},{transform:'translateY(' + lift + 'px)'}], 200);
     await A(tsu.el, [{transform:'translateX(0)'},{transform:'translateX(' + L.FH * .15 + 'px)', offset:.3},{transform:'translateX(' + dx + 'px)'}], { duration: 650, easing: 'cubic-bezier(.6,0,1,1)' });
     if(my !== seq) return;
@@ -1105,7 +1134,7 @@ const MOVES = {
     const up = -L.floor - L.FH * 1.6;
     A(tsu.body, [{transform:'translateY(' + lift + 'px) rotate(0)'},{transform:'translateY(' + lift + 'px) rotate(80deg)'}], 250);
     A(boke.body, [{transform:'rotate(0)'},{transform:'rotate(-30deg)'}], 250);
-    sfx('missile');
+    sfx('missile', .85);
     await Promise.all([
       A(boke.el, [{transform:'translateY(0)'},{transform:'translateY(' + up + 'px)'}], { duration: 900, easing: 'ease-in', delay: 150 }),
       A(tsu.el, [{transform:'translate(' + dx + 'px,0)'},{transform:'translate(' + dx + 'px,' + up + 'px)'}], { duration: 900, easing: 'ease-in', delay: 150 })
@@ -1133,7 +1162,7 @@ const MOVES = {
     // ツッコミだけ、空から帰ってくる
     tsu.el.getAnimations().forEach(a => a.cancel()); tsu.body.getAnimations().forEach(a => a.cancel());
     tsu.frame(14); tsu.el.style.visibility = '';
-    sfx('fall', .6);
+    sfx('fall', .5);
     await A(tsu.el, [{transform:'translateY(' + (-L.floor - tsu.ih) + 'px)'},{transform:'translateY(0)'}], { duration: 900, easing: 'cubic-bezier(.55,0,1,1)' });
     if(my !== seq) return;
     sfx('boing'); dustAt(tsu.x, L.floor, L.FH * .5); tsu.frame(0);
@@ -1142,7 +1171,7 @@ const MOVES = {
   // 思いっきりけって、サッカー場へ → キーパーが止めようとするけど止められず、GOOOOL!!!!
   async kick(my, actOk){
     const dx = boke.x - tsu.x + L.FH * .42;
-    tsu.frame(13); sfx('whistle', .8);
+    tsu.frame(13); sfx('whistle', .55);
     await A(tsu.el, [{transform:'translate(0,0)'},{transform:'translate(' + dx * .4 + 'px,' + (-L.FH * .05) + 'px)'},{transform:'translate(' + dx * .8 + 'px,0)'}], { duration: 500, easing: 'linear' });
     if(my !== seq) return;
     tsu.frame(11); sfx('kick');
@@ -1156,7 +1185,7 @@ const MOVES = {
     // サッカー場（別のシーン）
     await sceneOn('stadium', true);
     if(my !== seq) return;
-    sfx('cheer', .3);
+    sfx('cheer', .2);
     const F = S.F, fl = S.floor, g = $('goal'), gh = F * 1.1, gw = Math.min(L.W * .36, gh * 1.1);
     Object.assign(g.style, { width: gw + 'px', height: gh + 'px', left: (-gw * .06) + 'px', top: (fl - gh) + 'px' });
     g.animate([{opacity:1}], { duration: 1, fill: 'forwards' });
@@ -1178,7 +1207,7 @@ const MOVES = {
     A($('goalNet'), [{transform:'translateX(0)'},{transform:'translateX(-10px) scale(1.04)', offset:.3},{transform:'translateX(0)'}], 450);
     A(b.el, [{transform:tr(gx, gy)},{transform:tr(gx - gw * .12, gy), offset:.3},{transform:tr(gx - gw * .05, fl - F * .05)}], { duration: 600, easing: 'ease-in' });
     // GOOOOL!!!! と大かんせい
-    sfx('cheer', .9); sfx('whistle'); xvoice(tsu, 'x_goal');
+    sfx('cheer', .7); sfx('whistle', .7); xvoice(tsu, 'x_goal');
     $('gooal').style.fontSize = Math.round(L.W / 8) + 'px';
     A($('gooal'), [{opacity:0, transform:'translate(-50%,-50%) scale(.2) rotate(-12deg)'},{opacity:1, transform:'translate(-50%,-50%) scale(1.2) rotate(-6deg)', offset:.15},
       {transform:'translate(-50%,-50%) scale(1) rotate(-6deg)', offset:.3},{transform:'translate(-50%,-50%) scale(1.08) rotate(-6deg)', offset:.6},{opacity:1, transform:'translate(-50%,-50%) scale(1) rotate(-6deg)', offset:.9},{opacity:0, transform:'translate(-50%,-50%) scale(1) rotate(-6deg)'}], 2800);
@@ -1210,7 +1239,7 @@ const MOVES = {
     A(hL, [{transform:pose(boke.x - hw * 1.25, hy, true, 1)},{transform:pose(boke.x - hw * .93, hy, true, 1)}], { duration: 110, easing: 'ease-in' });
     await A(hR, [{transform:pose(boke.x + hw * .25, hy, false, 1)},{transform:pose(boke.x - hw * .07, hy, false, 1)}], { duration: 110, easing: 'ease-in' });
     if(my !== seq) return;
-    sfx('bigslap'); slap(true); shake(); bangShow(actOk ? 'パーン！' : 'ペチッ', !actOk); if(actOk) burst();
+    sfx('bigslap', 1.2); slap(true); shake(); bangShow(actOk ? 'パーン！' : 'ペチッ', !actOk); if(actOk) burst();
     boke.body.animate([{transform:'scaleX(.06)'}], { duration: 1, fill: 'forwards' });
     tsu.frame(0);
     await sleep(450); if(my !== seq) return;
@@ -1249,7 +1278,7 @@ const MOVES = {
     // あらしの中（別のシーン）
     await sceneOn('storm');
     if(my !== seq) return;
-    sfx('storm', .9);
+    sfx('storm', .65);
     const F = S.F, cx = L.W * .5, fy = S.floor - F * .3;  // 空中でぐるぐる回る足もとの高さ
     const cw = Math.min(L.W * .5, F * 1.1), ch = cw * 323 / 480, cy = L.H * .2;
     const cloud = tmpImg('img/props/thundercloud.webp', cw, ch, $('scene'));
@@ -1263,7 +1292,7 @@ const MOVES = {
     const top = cy + ch * .7, bot = fy - F * .6, bh = Math.max(F * .5, bot - top), bw = bh * 166 / 480;
     const bolt = tmpImg('img/props/bolt.webp', bw, bh, $('scene'));
     bolt.style.transform = tr(cx - bw / 2, top);
-    sfx('thunder'); sfx('shock', .9);
+    sfx('thunder', .8); sfx('shock', .5);
     A(bolt, [{opacity:0},{opacity:1, offset:.05},{opacity:.2, offset:.15},{opacity:1, offset:.25},{opacity:1, offset:.8},{opacity:0}], { duration: 1400, fill: 'forwards' });
     A($('flash'), [{opacity:0},{opacity:.85, offset:.08},{opacity:0, offset:.2},{opacity:.6, offset:.3},{opacity:0}], 900);
     shake(); bangShow(actOk ? 'ピシャーン！' : 'ピリッ', true);
@@ -1310,7 +1339,7 @@ const MOVES = {
     $('bang').className = 'bang';
     const mh = L.FH * .3, mw = mh * 480 / 269, y0 = L.floor - L.FH * .55 - mh / 2;
     const mis = tmpImg('img/props/missile.webp', mw, mh);
-    sfx('missile');
+    sfx('missile', .85);
     kira('！', boke.x + L.FH * .15, L.floor - L.FH * 1.15);
     await A(mis, [{transform:tr(-mw * 1.2, y0 - L.FH * .25, 'scaleX(-1) rotate(26deg)')},{transform:tr(boke.x - mw * .85, y0, 'scaleX(-1) rotate(26deg)')}], { duration: 700, easing: 'ease-in' });
     if(my !== seq) return;

@@ -70,7 +70,7 @@ const MOVES = {
     // 天井から、さかさまに落ちてくる
     boke.body.getAnimations().forEach(a => a.cancel());
     boke.frame(14); boke.el.style.visibility = '';
-    sfx('fall', .8);
+    sfx('fall', .65);
     await A(boke.el, [{transform:'translateY(' + (-L.floor - boke.ih) + 'px)'},{transform:'translateY(0)'}], { duration: 1300, easing: 'cubic-bezier(.55,0,1,1)' });
     if(my !== seq) return;
     thud(); shake(); dustAt(boke.x, L.floor, L.FH * .8); bangShow('ドスーン！', !actOk);
@@ -107,7 +107,7 @@ const MOVES = {
     kira('？', lx + F * .3, fl - F * 1.05);
     // 犬が走ってくる
     const dog = $('dog'), dust = $('dust'), dh = F * .42, dw = dogAs('run', dh);
-    sfx('dog');
+    sfx('dog', .8);
     await A(dog, [{opacity:1, transform:tr(-dw, fl - dh)},{opacity:1, transform:tr(lx - F * .5 - dw, fl - dh)}], { duration: 650, easing: 'ease-in' });
     if(my !== seq) return;
     // けんか
@@ -115,7 +115,7 @@ const MOVES = {
     dust.src = '../img/props/dust.webp'; Object.assign(dust.style, { width: fs + 'px', height: fs + 'px', left: (fx - fs/2) + 'px', top: (fl - fs * .85) + 'px' });
     b.el.style.visibility = 'hidden';
     const bh = F * .5, bw = dogAs('bite', bh), bx = fx - bw * .3, by = fl - F * .75;
-    sfx('dog'); xvoice(boke, 'x_itai');
+    sfx('dog', .8); xvoice(boke, 'x_itai');
     [0, 650, 1300].forEach(t => setTimeout(() => { if(my === seq) sfx('fight', .8); }, t));
     A(dust, [{opacity:0, transform:'scale(.3)'},{opacity:1, transform:'scale(1.1)', offset:.1},{transform:'scale(.95) rotate(8deg)', offset:.3},{transform:'scale(1.08) rotate(-6deg)', offset:.5},{transform:'scale(.97) rotate(5deg)', offset:.7},{opacity:1, transform:'scale(1.05)', offset:.9},{opacity:0, transform:'scale(1.3)'}], 2400);
     A(dog, [{opacity:0, transform:tr(bx, by)},{opacity:1, transform:tr(bx, by), offset:.15},{transform:tr(bx - 14, by - 10), offset:.3},{transform:tr(bx + 10, by + 4), offset:.45},{transform:tr(bx - 8, by - 12), offset:.6},{opacity:1, transform:tr(bx + 6, by), offset:.8},{opacity:0, transform:tr(bx, by)}], 2400);
@@ -138,7 +138,7 @@ const MOVES = {
   },
   async zutsuki(my, actOk){
     const dx = boke.x - tsu.x + L.FH * .45, lift = -L.FH * .35;
-    tsu.frame(10); sfx('missile');
+    tsu.frame(10); sfx('missile', .85);
     A(tsu.body, [{transform:'translateY(0)'},{transform:'translateY(' + lift + 'px)'}], 200);
     await A(tsu.el, [{transform:'translateX(0)'},{transform:'translateX(' + L.FH * .15 + 'px)', offset:.3},{transform:'translateX(' + dx + 'px)'}], { duration: 650, easing: 'cubic-bezier(.6,0,1,1)' });
     if(my !== seq) return;
@@ -149,7 +149,7 @@ const MOVES = {
     const up = -L.floor - L.FH * 1.6;
     A(tsu.body, [{transform:'translateY(' + lift + 'px) rotate(0)'},{transform:'translateY(' + lift + 'px) rotate(80deg)'}], 250);
     A(boke.body, [{transform:'rotate(0)'},{transform:'rotate(-30deg)'}], 250);
-    sfx('missile');
+    sfx('missile', .85);
     await Promise.all([
       A(boke.el, [{transform:'translateY(0)'},{transform:'translateY(' + up + 'px)'}], { duration: 900, easing: 'ease-in', delay: 150 }),
       A(tsu.el, [{transform:'translate(' + dx + 'px,0)'},{transform:'translate(' + dx + 'px,' + up + 'px)'}], { duration: 900, easing: 'ease-in', delay: 150 })
@@ -177,7 +177,7 @@ const MOVES = {
     // ツッコミだけ、空から帰ってくる
     tsu.el.getAnimations().forEach(a => a.cancel()); tsu.body.getAnimations().forEach(a => a.cancel());
     tsu.frame(14); tsu.el.style.visibility = '';
-    sfx('fall', .6);
+    sfx('fall', .5);
     await A(tsu.el, [{transform:'translateY(' + (-L.floor - tsu.ih) + 'px)'},{transform:'translateY(0)'}], { duration: 900, easing: 'cubic-bezier(.55,0,1,1)' });
     if(my !== seq) return;
     sfx('boing'); dustAt(tsu.x, L.floor, L.FH * .5); tsu.frame(0);
@@ -185,7 +185,7 @@ const MOVES = {
   },
   async kick(my, actOk){
     const dx = boke.x - tsu.x + L.FH * .42;
-    tsu.frame(13); sfx('whistle', .8);
+    tsu.frame(13); sfx('whistle', .55);
     await A(tsu.el, [{transform:'translate(0,0)'},{transform:'translate(' + dx * .4 + 'px,' + (-L.FH * .05) + 'px)'},{transform:'translate(' + dx * .8 + 'px,0)'}], { duration: 500, easing: 'linear' });
     if(my !== seq) return;
     tsu.frame(11); sfx('kick');
@@ -199,7 +199,7 @@ const MOVES = {
     // サッカー場（別のシーン）
     await sceneOn('stadium', true);
     if(my !== seq) return;
-    sfx('cheer', .3);
+    sfx('cheer', .2);
     const F = S.F, fl = S.floor, g = $('goal'), gh = F * 1.1, gw = Math.min(L.W * .36, gh * 1.1);
     Object.assign(g.style, { width: gw + 'px', height: gh + 'px', left: (-gw * .06) + 'px', top: (fl - gh) + 'px' });
     g.animate([{opacity:1}], { duration: 1, fill: 'forwards' });
@@ -221,7 +221,7 @@ const MOVES = {
     A($('goalNet'), [{transform:'translateX(0)'},{transform:'translateX(-10px) scale(1.04)', offset:.3},{transform:'translateX(0)'}], 450);
     A(b.el, [{transform:tr(gx, gy)},{transform:tr(gx - gw * .12, gy), offset:.3},{transform:tr(gx - gw * .05, fl - F * .05)}], { duration: 600, easing: 'ease-in' });
     // GOOOOL!!!! と大かんせい
-    sfx('cheer', .9); sfx('whistle'); xvoice(tsu, 'x_goal');
+    sfx('cheer', .7); sfx('whistle', .7); xvoice(tsu, 'x_goal');
     $('gooal').style.fontSize = Math.round(L.W / 8) + 'px';
     A($('gooal'), [{opacity:0, transform:'translate(-50%,-50%) scale(.2) rotate(-12deg)'},{opacity:1, transform:'translate(-50%,-50%) scale(1.2) rotate(-6deg)', offset:.15},
       {transform:'translate(-50%,-50%) scale(1) rotate(-6deg)', offset:.3},{transform:'translate(-50%,-50%) scale(1.08) rotate(-6deg)', offset:.6},{opacity:1, transform:'translate(-50%,-50%) scale(1) rotate(-6deg)', offset:.9},{opacity:0, transform:'translate(-50%,-50%) scale(1) rotate(-6deg)'}], 2800);
@@ -251,7 +251,7 @@ const MOVES = {
     // あらしの中（別のシーン）
     await sceneOn('storm');
     if(my !== seq) return;
-    sfx('storm', .9);
+    sfx('storm', .65);
     const F = S.F, cx = L.W * .5, fy = S.floor - F * .3;  // 空中でぐるぐる回る足もとの高さ
     const cw = Math.min(L.W * .5, F * 1.1), ch = cw * 323 / 480, cy = L.H * .2;
     const cloud = tmpImg('img/props/thundercloud.webp', cw, ch, $('scene'));
@@ -265,7 +265,7 @@ const MOVES = {
     const top = cy + ch * .7, bot = fy - F * .6, bh = Math.max(F * .5, bot - top), bw = bh * 166 / 480;
     const bolt = tmpImg('img/props/bolt.webp', bw, bh, $('scene'));
     bolt.style.transform = tr(cx - bw / 2, top);
-    sfx('thunder'); sfx('shock', .9);
+    sfx('thunder', .8); sfx('shock', .5);
     A(bolt, [{opacity:0},{opacity:1, offset:.05},{opacity:.2, offset:.15},{opacity:1, offset:.25},{opacity:1, offset:.8},{opacity:0}], { duration: 1400, fill: 'forwards' });
     A($('flash'), [{opacity:0},{opacity:.85, offset:.08},{opacity:0, offset:.2},{opacity:.6, offset:.3},{opacity:0}], 900);
     shake(); bangShow(actOk ? 'ピシャーン！' : 'ピリッ', true);
@@ -311,7 +311,7 @@ const MOVES = {
     $('bang').className = 'bang';
     const mh = L.FH * .3, mw = mh * 480 / 269, y0 = L.floor - L.FH * .55 - mh / 2;
     const mis = tmpImg('img/props/missile.webp', mw, mh);
-    sfx('missile');
+    sfx('missile', .85);
     kira('！', boke.x + L.FH * .15, L.floor - L.FH * 1.15);
     await A(mis, [{transform:tr(-mw * 1.2, y0 - L.FH * .25, 'scaleX(-1) rotate(26deg)')},{transform:tr(boke.x - mw * .85, y0, 'scaleX(-1) rotate(26deg)')}], { duration: 700, easing: 'ease-in' });
     if(my !== seq) return;
@@ -396,7 +396,7 @@ const MOVES = {
     sfx('whoosh');
     await A(hand, [{transform:tr(hx, hover, 'rotate(180deg)')},{transform:tr(hx, L.floor - hh * .97, 'rotate(180deg)')}], { duration: 140, easing: 'ease-in' });
     if(my !== seq) return;
-    sfx('bigslap'); sfx('splat', .8); thud(); shake(true); bangShow('ペッシャーン！'); burst();
+    sfx('bigslap', 1.2); sfx('splat', .6); thud(); shake(true); bangShow('ペッシャーン！'); burst();
     boke.body.style.transformOrigin = '50% 100%';
     boke.frame(12);
     boke.body.animate([{transform:'scale(1.7,.09)'}], { duration: 1, fill: 'forwards' });
@@ -447,7 +447,7 @@ const MOVES = {
   // ホームラン：野球場まで飛んでいく
   async homerun(my){
     const F = L.FH, dx = boke.x - tsu.x + F * .7;
-    tsu.frame(13); sfx('whistle', .6);
+    tsu.frame(13); sfx('whistle', .4);
     await A(tsu.el, [{transform:'translateX(0)'},{transform:'translateX(' + dx + 'px)'}], { duration: 380, easing: 'ease-in' });
     if(my !== seq) return;
     tsu.frame(4);
@@ -458,7 +458,7 @@ const MOVES = {
     whoosh();
     await A(bat, [{transform:'rotate(70deg)'},{transform:'rotate(-120deg)'}], { duration: 150, easing: 'ease-in' });
     if(my !== seq) return;
-    sfx('bat'); slap(true); shake(); bangShow('カキーン！'); burst();
+    sfx('bat', 1.4); slap(true); shake(); bangShow('カキーン！'); burst();
     boke.frame(7); xvoice(boke, 'x_uwaa');
     A(boke.body, [{transform:'rotate(0)'},{transform:'rotate(-720deg)'}], 700);
     await A(boke.el, [{transform:'translate(0,0)'},{transform:tr(-L.W * .3, -L.H * 1.2)}], { duration: 700, easing: 'ease-out' });
@@ -468,7 +468,7 @@ const MOVES = {
     $('bang').className = 'bang';
     await sceneOn('baseball');
     if(my !== seq) return;
-    sfx('cheer', .6);
+    sfx('cheer', .45);
     const b = tmpActor(boke.c, false, F * .7, $('scene')); b.frame(7);
     const x0 = L.W * .45, y0 = L.H + F, x1 = L.W * .82, y1 = L.H * .35;
     A(b.body, [{transform:'rotate(0)'},{transform:'rotate(-1440deg)'}], 1700);
@@ -477,7 +477,7 @@ const MOVES = {
     b.el.style.visibility = 'hidden';
     // 電光けいじ板に「ホームラン」
     const left = (L.W - S.iw) / 2, top = L.H - S.ih;
-    sfx('fanfare', .7); sfx('cheer', .9);
+    sfx('fanfare', .6); sfx('cheer', .7);
     label('ホームラン！', left + S.iw * .265, top + S.ih * .245, 'board', Math.min(S.iw * .05, 72));
     kira('ワーー！', L.W * .5, L.H * .55);
     await sleep(2300); if(my !== seq) return;
@@ -497,7 +497,7 @@ const MOVES = {
     const bx = boke.x - w * .3, by = L.floor - F * .9 - h * .3;
     await A(t, [{transform:tr(x, y, 'rotate(-75deg)')},{transform:tr(bx, by, 'rotate(-330deg)')}], { duration: 320, easing: 'ease-in' });
     if(my !== seq) return;
-    sfx('crash'); sfx('dishes', .6); thud(); bangShow('ガッシャーン！'); burst();
+    sfx('crash', .4); sfx('dishes', .6); thud(); bangShow('ガッシャーン！'); burst();
     boke.frame(7); boke.body.style.transformOrigin = '50% 100%'; xvoice(boke, 'x_itai');
     A(boke.body, [{transform:'rotate(0)'},{transform:'rotate(-90deg) translateY(8%)'}], { duration: 300, easing: 'ease-in' });
     const lx = boke.x + F * .15;
@@ -602,7 +602,7 @@ const MOVES = {
   // うち上げ花火：夜空で ドーン
   async hanabi(my){
     const F = L.FH;
-    tsu.frame(5); sfx('launch');
+    tsu.frame(5); sfx('launch', .85);
     boke.frame(14);
     await A(boke.el, [{transform:'translateY(0)'},{transform:'translateY(' + (-F * .15) + 'px)', offset:.3},{transform:'translateY(' + (-L.H * 1.3) + 'px)'}], { duration: 800, easing: 'ease-in' });
     boke.el.style.visibility = 'hidden';
@@ -612,11 +612,11 @@ const MOVES = {
     if(my !== seq) return;
     const sc = $('scene'), cx = L.W * .5, cy = L.H * .3;
     const b = tmpActor(boke.c, false, F * .5, sc); b.frame(14);
-    sfx('launch', .8);
+    sfx('launch', .7);
     await A(b.el, [{transform:tr(cx, L.H + F)},{transform:tr(cx, cy + F * .25)}], { duration: 1000, easing: 'ease-out' });
     if(my !== seq) return;
     const boom = (x, y, n, r, cols) => {
-      sfx('firework', .8);
+      sfx('firework', 1.05);
       for(let i = 0; i < n; i++){
         const p = tmpEl('i', 'fwk', sc), a = i / n * Math.PI * 2;
         p.style.background = cols[i % cols.length]; p.style.boxShadow = '0 0 8px ' + cols[i % cols.length];
@@ -659,7 +659,7 @@ const MOVES = {
       const x = +p.dataset.x, y = +p.dataset.y, ang = (Math.random() * 2 - 1) * 540;
       A(p, [{transform:tr(x, y)},{transform:tr(x + (Math.random() - .3) * F * .8, y - F * (.6 + Math.random()), 'rotate(' + ang + 'deg)'), offset:.5},{transform:tr(x + (Math.random() - .3) * F, L.floor - pw, 'rotate(' + (ang * 1.6) + 'deg)'), opacity:.0}], { duration: 900, easing: 'ease-out' });
     });
-    shake(); bangShow('ストライク！'); burst(); sfx('cheer', .7);
+    shake(); bangShow('ストライク！'); burst(); sfx('cheer', .5);
     tsu.frame(15);
     await A(boke.el, [{transform:'translateX(' + roll + 'px)'},{transform:'translateX(' + (-boke.x - F) + 'px)'}], { duration: 400, easing: 'linear' });
     boke.el.style.visibility = 'hidden';
@@ -675,7 +675,7 @@ const MOVES = {
     const F = L.FH, w = F * 1.0, h = w * 272 / 480, x = boke.x - w / 2, y = Math.max(L.H * .05, L.floor - F * 1.75 - h);
     tsu.frame(27);
     const u = vsImg('ufo', w); u.style.zIndex = 2;
-    sfx('ufo', .9);
+    sfx('ufo', .7);
     await A(u, [{transform:tr(L.W + w, -h)},{transform:tr(x, y)}], { duration: 900, easing: 'ease-out' });
     if(my !== seq) return;
     u.animate([{transform:tr(x, y)},{transform:tr(x, y - F * .04)},{transform:tr(x, y)}], { duration: 500, iterations: Infinity });
@@ -688,10 +688,10 @@ const MOVES = {
     await A(boke.el, [{transform:'translateY(0) scale(1)'},{transform:'translateY(' + (ct - L.floor + F * .3) + 'px) scale(.25)'}], { duration: 1500, easing: 'ease-in' });
     if(my !== seq) return;
     boke.el.style.visibility = 'hidden';
-    sfx('pop'); A(c, [{opacity:1},{opacity:0}], 200);
+    sfx('pop', .7); A(c, [{opacity:1},{opacity:0}], 200);
     tsu.frame(0);
     u.getAnimations().forEach(a => a.cancel());
-    sfx('ufo', .6); whoosh();
+    sfx('ufo', .5); whoosh();
     await A(u, [{transform:tr(x, y)},{transform:tr(x - F * .2, y + F * .1), offset:.2},{transform:tr(-w * 1.5, -h * 2)}], { duration: 700, easing: 'ease-in' });
     if(my !== seq) return;
     kira('さらわれた！', L.W * .5, L.H * .4);
@@ -712,7 +712,7 @@ const MOVES = {
     tsu.frame(27); sfx('charge', .6);
     kira('3、2、1…', L.W * .5, L.H * .35);
     await sleep(900); if(my !== seq) return;
-    sfx('cannon'); thud(); shake(true); bangShow('ドッカーン！'); burst();
+    sfx('cannon', .9); thud(); shake(true); bangShow('ドッカーン！'); burst();
     A($('flash'), [{opacity:0},{opacity:.6, offset:.15},{opacity:0}], 400);
     dustAt(mx, my2 + F * .2, F * .8);
     A(cn, [{transform:tr(x, y)},{transform:tr(x - F * .06, y, 'rotate(-4deg)'), offset:.2},{transform:tr(x, y)}], 300);
@@ -731,7 +731,7 @@ const MOVES = {
     if(my !== seq) return;
     si.src = framesOf(c.id)[14].src;
     si.animate([{transform:tr(tx, ty + bh * .05) + ' scale(.22)'}], { duration: 1, fill: 'forwards' });
-    thud(); sfx('crash', .6);
+    thud(); sfx('crash', .3);
     A(moon, [{transform:tr(mxs, mys)},{transform:tr(mxs + 6, mys - 4)},{transform:tr(mxs - 5, mys + 3)},{transform:tr(mxs, mys)}], 300);
     kira('ささった！', mxs + mw * .5, mys + mw * 1.05);
     await sleep(1500); if(my !== seq) return;
@@ -751,7 +751,7 @@ const MOVES = {
     whoosh();
     await A(wt, [{transform:tr(x, -h * 1.3)},{transform:tr(x, L.floor - h)}], { duration: 450, easing: 'cubic-bezier(.6,0,1,1)' });
     if(my !== seq) return;
-    sfx('quake', .8); thud(); shake(true); bangShow('ズドーン！'); burst();
+    sfx('quake', .55); thud(); shake(true); bangShow('ズドーン！'); burst();
     dustAt(boke.x, L.floor, F * 1.3);
     boke.el.style.visibility = 'hidden'; tsu.frame(0);
     label('10トン', boke.x, L.floor - h * .38, 'tonL', F * .2, 1100);
@@ -834,7 +834,7 @@ const MOVES = {
     tsu.frame(13);
     await A(tsu.el, [{transform:'translateX(0)'},{transform:'translateX(' + dx + 'px)'}], { duration: 350, easing: 'ease-in' });
     if(my !== seq) return;
-    tsu.frame(11); sfx('kick'); slap(true);
+    tsu.frame(11); sfx('kick', .8); slap(true);
     const go = -boke.x - F;
     whoosh();
     A(ice, [{transform:'translateX(0)'},{transform:'translateX(' + go + 'px)'}], { duration: 900, easing: 'cubic-bezier(.3,0,.8,1)' });
