@@ -265,7 +265,8 @@ async function speak(actor, url, my, opt){
   actor.img.style.transform = '';
   if(my === seq){ voiceSrc = null; duck(false); }
 }
-const voiceUrl = (cid, id) => '../audio/' + cid + '/v_' + id + '.mp3';
+const VOICE_V = '2';  // 声を作りなおしたら上げる（iPad に古い声が残らないように）
+const voiceUrl = (cid, id) => '../audio/' + cid + '/v_' + id + '.mp3?v=' + VOICE_V;
 
 // ---- テロップ ----
 function telop(p, line, dur){

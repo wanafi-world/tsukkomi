@@ -45,5 +45,8 @@
 - ボケのポーズ：`img/chars/<id>/16〜29.webp`（16 おなか・17 さけぶ・18 背のび・19 にぎる・20 皿で飲む・21 ドヤ・22 立ってねる・23 親指・24 こしに手・25 手かがみ・26 力こぶ・27 空を指す・28 首かしげ・29 バナナ電話）。Higgsfield で「左上が立つ」の 4×2 表を作り、`python3 versus/tools/make_sprites_vs.py <背景なしの表.png> <id> 16`（2まい目は 23）で切る。meta.json の x に `{w,h,ax}`（ax は足もとの横の場所）
 - 小道具：`img/vs/`（`python3 versus/tools/cut_props.py <表.png> 列 行 名前...` で切る）。カラス人間は crow_up / crow_glide / crow_down（右向き）
 - 背景：`img/bg/` に sky（空）・baseball（野球場）・night（夜の町）を追加
-- 声：`audio/<id>/v_<セリフid>.mp3`。`python3 versus/tools/voice_script.py <出力フォルダ>` の台本を ElevenLabs（eleven_v3、上の表の声）で読ませ、文字起こし（words.json）をつけて `split_voice.py` で切ったあと、`ffmpeg -af atempo=1.25` で早口にした。たこやきの声は先に `afftdn=nr=24:nf=-38,agate` で雑音をとる
+- 声：`audio/<id>/v_<セリフid>.mp3`。`python3 versus/tools/voice_script.py <出力フォルダ>` の台本を ElevenLabs で読ませ、文字起こし（words.json）をつけて `split_voice.py` で切ったあと、`ffmpeg -af atempo=1.25` で早口にした
+  - 声が低めだった おにぎり・しいたけ・たこやき は、二人用だけ 高めの声・ハイテンションにした（eleven_v4、台本は `voice_script.py <出力フォルダ> hype`：ボケは `[excited]`、ツッコミは `[shouting]`、文の終わりは「！！！！」）
+    - おにぎり：Yudai (DxJgF0EHr8D4pzexzxtd)／しいたけ：Oira (Mw7z4OZeUftXQhplQJxC)／たこやき：Haru・関西 (GwO130spypDujqzJqG1g)
+  - エビフライ・プリンは上の表の声（eleven_v3）のまま
 - BGM：`versus/bgm/menu.mp3`（えらぶ画面）・`play.mp3`（本番）。ElevenLabs の音楽（eleven_music_v2_5）で作った。声の間は小さくなる
