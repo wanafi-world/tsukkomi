@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>なんでやねん道場</title>
-<meta name="tsukkomi-build" content="20261127-0520">
+<meta name="tsukkomi-build" content="20261127-0617">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -17,8 +17,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
 <script src="lib/firebase-app-compat.js"></script>
 <script src="lib/firebase-database-compat.js"></script>
-<script src="firebase-config.js?v=20261127-0520"></script>
-<script src="fb-shim.js?v=20261127-0520"></script>
+<script src="firebase-config.js?v=20261127-0617"></script>
+<script src="fb-shim.js?v=20261127-0617"></script>
 <style>
 /* 漫才の舞台。左に金びょうぶとセンターマイクの前に立つボケ、右にツッコミを選ぶ札。たて画面では上下に積む */
 :root{
@@ -718,8 +718,28 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // 音（タップのあとにだけ鳴らす）
-let ac = null;
-function audio(){ if(!ac){ try{ ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(ac && ac.state === 'suspended') ac.resume(); return ac; }
+// 音の道：声（voiceBus）と効果音（sfxBus）→ リミッター。声の間は効果音を小さくする
+let ac = null, sfxBus = null, voiceBus = null;
+const SFX_VOL = .55, SFX_DUCK = .22;
+function audio(){
+  if(!ac){ try{ ac = new (window.AudioContext||window.webkitAudioContext)();
+    const lim = ac.createDynamicsCompressor(); lim.threshold.value = -6; lim.knee.value = 4; lim.ratio.value = 12; lim.attack.value = .003; lim.release.value = .15; lim.connect(ac.destination);
+    sfxBus = ac.createGain(); sfxBus.gain.value = SFX_VOL; sfxBus.connect(lim);
+    voiceBus = ac.createGain(); voiceBus.connect(lim); }catch(e){} }
+  if(ac && ac.state === 'suspended') ac.resume(); return ac;
+}
+function duck(on){ if(!sfxBus) return; sfxBus.gain.setTargetAtTime(on ? SFX_DUCK : SFX_VOL, ac.currentTime, on ? .03 : .25); }
+// 声ファイルの大きさがキャラごとにちがうので、同じくらいの大きさにそろえる倍率
+const louds = new WeakMap();
+function loud(buf){
+  if(!louds.has(buf)){
+    const d = buf.getChannelData(0); let e = 0, n = 0;
+    for(let i = 0; i < d.length; i += 4){ const v = d[i]; if(v > .02 || v < -.02){ e += v*v; n++; } }  // 無音のところは数えない
+    const rms = n ? Math.sqrt(e / n) : .2;
+    louds.set(buf, Math.min(3, Math.max(.6, .22 / rms)));
+  }
+  return louds.get(buf);
+}
 function unlock(){ const a = audio(); if(!a) return; try{ const s = a.createBufferSource(); s.buffer = a.createBuffer(1, 1, 22050); s.connect(a.destination); s.start(0); }catch(e){} }
 function noise(len, pow, freq, gain){
   const a = audio(); if(!a) return; const t = a.currentTime;
@@ -728,31 +748,31 @@ function noise(len, pow, freq, gain){
   const src = a.createBufferSource(); src.buffer = buf;
   const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = .7;
   const g = a.createGain(); g.gain.value = gain;
-  src.connect(f); f.connect(g); g.connect(a.destination); src.start(t);
+  src.connect(f); f.connect(g); g.connect(sfxBus); src.start(t);
 }
 function tone(type, f0, f1, len, gain){
   const a = audio(); if(!a) return; const t = a.currentTime;
   const o = a.createOscillator(), g = a.createGain(); o.type = type;
   o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t+len);
   g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.001, t+len);
-  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+len+.02);
+  o.connect(g); g.connect(sfxBus); o.start(t); o.stop(t+len+.02);
 }
 // 効果音は audio/sfx/<名前>.mp3（Epidemic Sound から。tools/README の「効果音」）。読めないときは鳴らさない
 const SFX = ['bigslap','blast','boing','charge','cheer','crash','dodge','dog','fail','fall','fight','kick','laugh','missile','paper','pop','rimshot','shock','slap','spin','storm','thunder','twinkle','whistle','whoosh'];
 const live = new Set();
 // 音のファイルを鳴らす。鳴りおわると解決する
-function play(url, vol){
+function play(url, vol, dest){
   return clip(url).then(buf => {
     const a = audio(); if(!buf || !a) return;
-    const src = a.createBufferSource(), g = a.createGain(); src.buffer = buf; g.gain.value = vol == null ? 1 : vol;
-    src.connect(g); g.connect(a.destination); src.start(); live.add(src);
+    const src = a.createBufferSource(), g = a.createGain(); src.buffer = buf; g.gain.value = (vol == null ? 1 : vol) * (dest === voiceBus ? loud(buf) : 1);
+    src.connect(g); g.connect(dest || sfxBus); src.start(); live.add(src);
     return new Promise(r => { src.onended = () => { live.delete(src); r(); }; });
   });
 }
 const sfx = (name, vol) => play('audio/sfx/' + name + '.mp3', vol);
 function stopSfx(){ live.forEach(s => { try{ s.onended = null; s.stop(); }catch(e){} }); live.clear(); }
 // キャラの演出の声（x_tadaima など）。口は動かさない
-const xvoice = (A, name) => play('audio/' + A.c.id + '/' + name + '.mp3');
+const xvoice = (A, name) => play('audio/' + A.c.id + '/' + name + '.mp3', 1, voiceBus);
 function slap(strong){ sfx('slap', strong ? 1 : .6); tone('sine', strong ? 160 : 120, 50, .18, strong ? .6 : .3); }
 const boo = () => sfx('fail', .7);
 const whoosh = () => sfx('whoosh');
@@ -787,7 +807,7 @@ function preloadSfx(){
 let keeper = null;
 
 let voiceSrc = null;
-function stopVoice(){ if(voiceSrc){ try{ voiceSrc.onended = null; voiceSrc.stop(); }catch(e){} voiceSrc = null; } }
+function stopVoice(){ if(voiceSrc){ try{ voiceSrc.onended = null; voiceSrc.stop(); }catch(e){} voiceSrc = null; } duck(false); }
 // しゃべる。声の大きさで口をあけしめする。face(open, t) がコマ番号を返す
 async function speak(actor, url, text, face, my){
   stopVoice();
@@ -799,7 +819,8 @@ async function speak(actor, url, text, face, my){
   if(buf && a){
     const src = a.createBufferSource(); src.buffer = buf;
     an = a.createAnalyser(); an.fftSize = 512; data = new Uint8Array(an.fftSize);
-    src.connect(an); an.connect(a.destination); src.start(); voiceSrc = src;
+    const g = a.createGain(); g.gain.value = loud(buf);
+    src.connect(an); an.connect(g); g.connect(voiceBus); src.start(); voiceSrc = src; duck(true);
   }
   const t0 = performance.now();
   await new Promise(done => {
@@ -818,7 +839,7 @@ async function speak(actor, url, text, face, my){
       requestAnimationFrame(tick);
     })(t0);
   });
-  if(voiceSrc && my === seq) voiceSrc = null;
+  if(voiceSrc && my === seq){ voiceSrc = null; duck(false); }
 }
 
 // ---- キャラ（舞台の上の人） ----

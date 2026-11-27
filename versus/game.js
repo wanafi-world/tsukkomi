@@ -23,10 +23,16 @@ async function loadMeta(){
 }
 
 // ---- 音 ----
-let ac = null, master = null, bgmGain = null;
+// 音の道：声（voiceBus）・効果音（sfxBus）・BGM（bgmGain）→ master → リミッター。声の間は効果音と BGM を小さくする
+let ac = null, master = null, bgmGain = null, sfxBus = null, voiceBus = null;
+const SFX_VOL = .55, SFX_DUCK = .22;
 function audio(){
-  if(!ac){ try{ ac = new (window.AudioContext||window.webkitAudioContext)(); master = ac.createGain(); master.connect(ac.destination);
-    bgmGain = ac.createGain(); bgmGain.gain.value = .32; bgmGain.connect(master); }catch(e){} }
+  if(!ac){ try{ ac = new (window.AudioContext||window.webkitAudioContext)();
+    const lim = ac.createDynamicsCompressor(); lim.threshold.value = -6; lim.knee.value = 4; lim.ratio.value = 12; lim.attack.value = .003; lim.release.value = .15;
+    lim.connect(ac.destination); master = ac.createGain(); master.connect(lim);
+    bgmGain = ac.createGain(); bgmGain.gain.value = .32; bgmGain.connect(master);
+    sfxBus = ac.createGain(); sfxBus.gain.value = SFX_VOL; sfxBus.connect(master);
+    voiceBus = ac.createGain(); voiceBus.gain.value = 1; voiceBus.connect(master); }catch(e){} }
   if(ac && ac.state === 'suspended') ac.resume();
   return ac;
 }
@@ -36,7 +42,18 @@ function tone(type, f0, f1, len, gain){
   const o = a.createOscillator(), g = a.createGain(); o.type = type;
   o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t+len);
   g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.001, t+len);
-  o.connect(g); g.connect(master); o.start(t); o.stop(t+len+.02);
+  o.connect(g); g.connect(sfxBus); o.start(t); o.stop(t+len+.02);
+}
+// 声ファイルの大きさがキャラごとにちがうので、同じくらいの大きさにそろえる倍率
+const louds = new WeakMap();
+function loud(buf){
+  if(!louds.has(buf)){
+    const d = buf.getChannelData(0); let e = 0, n = 0;
+    for(let i = 0; i < d.length; i += 4){ const v = d[i]; if(v > .02 || v < -.02){ e += v*v; n++; } }  // 無音のところは数えない
+    const rms = n ? Math.sqrt(e / n) : .2;
+    louds.set(buf, Math.min(3, Math.max(.6, .22 / rms)));
+  }
+  return louds.get(buf);
 }
 const clips = new Map();
 function clip(url){
@@ -52,7 +69,8 @@ function play(url, vol, dest){
   return clip(url).then(buf => {
     const a = audio(); if(!buf || !a) return;
     const src = a.createBufferSource(), g = a.createGain(); src.buffer = buf; g.gain.value = vol == null ? 1 : vol;
-    src.connect(g); g.connect(dest || master); src.start(); live.add(src);
+    if(dest === voiceBus) g.gain.value *= loud(buf);
+    src.connect(g); g.connect(dest || sfxBus); src.start(); live.add(src);
     return new Promise(r => { src.onended = () => { live.delete(src); r(); }; });
   });
 }
@@ -61,7 +79,7 @@ const SFX = ['alarm','bat','biglaugh','bigslap','blast','boing','book','bowling'
   'splat','storm','thunder','twinkle','ufo','whistle','whoosh'];
 const sfx = (name, vol) => play('../audio/sfx/' + name + '.mp3', vol);
 function stopSfx(){ live.forEach(s => { try{ s.onended = null; s.stop(); }catch(e){} }); live.clear(); }
-const xvoice = (A, name) => play('../audio/' + A.c.id + '/' + name + '.mp3');
+const xvoice = (A, name) => play('../audio/' + A.c.id + '/' + name + '.mp3', 1, voiceBus);
 function slap(strong){ sfx('slap', strong ? 1 : .6); tone('sine', strong ? 160 : 120, 50, .18, strong ? .6 : .3); }
 const whoosh = () => sfx('whoosh');
 const thud = () => { sfx('crash', .8); tone('sine', 90, 35, .3, .8); };
@@ -77,7 +95,7 @@ async function bgm(name){
   if(!buf || !a || bgmName !== name) return;
   const s = a.createBufferSource(); s.buffer = buf; s.loop = true; s.connect(bgmGain); s.start(); bgmSrc = s;
 }
-function duck(on){ const a = audio(); if(!a || !bgmGain) return; bgmGain.gain.setTargetAtTime(on ? .1 : .32, a.currentTime, .08); }
+function duck(on){ const a = audio(); if(!a || !bgmGain) return; bgmGain.gain.setTargetAtTime(on ? .08 : .32, a.currentTime, .08); sfxBus.gain.setTargetAtTime(on ? SFX_DUCK : SFX_VOL, a.currentTime, on ? .03 : .25); }
 
 // ---- 舞台の人 ----
 const imgs = {};
@@ -240,7 +258,8 @@ async function speak(actor, url, my, opt){
   if(buf && a){
     const src = a.createBufferSource(); src.buffer = buf;
     an = a.createAnalyser(); an.fftSize = 512; data = new Uint8Array(an.fftSize);
-    src.connect(an); an.connect(master); src.start(); voiceSrc = src; duck(true);
+    const g = a.createGain(); g.gain.value = loud(buf);
+    src.connect(an); an.connect(g); g.connect(voiceBus); src.start(); voiceSrc = src; duck(true);
   }
   if(opt.onStart) opt.onStart(dur);
   const t0 = performance.now();
@@ -413,7 +432,7 @@ function drawPick(){
     b.querySelector('b').textContent = TAGS[l.tag].icon;
     b.querySelector('span span').textContent = l.text;
     b.querySelector('em').textContent = TAGS[l.tag].name + (L1.kind === 'tsu' ? '・' + l.name : '');
-    b.onclick = () => { pk.sel.push(l.id); sfx('pop', .4); play(voiceUrl(G.chars[p], l.id), .8); drawPick(); };
+    b.onclick = () => { pk.sel.push(l.id); sfx('pop', .4); play(voiceUrl(G.chars[p], l.id), .9, voiceBus); drawPick(); };
     list.appendChild(b);
   });
   $('pkOk').disabled = pk.sel.length < 5;
