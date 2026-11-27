@@ -1,5 +1,6 @@
 # 二人用のセリフ48こを、1人分の台本（Audio tags つき、[long pause] で区切る）にする
-# 使い方: python3 versus/tools/voice_script.py <出力フォルダ>  → vs.txt（ElevenLabs に読ませる）と vs_t.json（tools/split_voice.py にわたす）
+# 使い方: python3 versus/tools/voice_script.py <出力フォルダ> [hype]
+#   hype をつけると、高めの声・ハイテンション用（ボケは [excited]、ツッコミは [shouting]、文の終わりを「！！！！」にする）  → vs.txt（ElevenLabs に読ませる）と vs_t.json（tools/split_voice.py にわたす）
 import json, os, re, sys
 R = os.path.dirname(os.path.abspath(__file__))
 src = open(os.path.join(R, '..', 'data.js'), encoding='utf8').read()
@@ -21,10 +22,18 @@ READ = {  # 読みまちがえやすいところは、かなで読ませる
 }
 BT = {'big': 'proud', 'food': 'excited', 'sleep': 'sleepy', 'jiman': 'boastful', 'sora': 'dreamy', 'kan': 'curious'}
 OUT = sys.argv[1] if len(sys.argv) > 1 else '.'
+HYPE = len(sys.argv) > 2 and sys.argv[2] == 'hype'
+def hype(t):  # 文の終わりの「。」「！」を「！！！！」に（「？」は「？！！」）
+    t = re.sub(r'[。！]+$', '！！！！', t)
+    t = re.sub(r'？$', '？！！', t)
+    return t if re.search(r'[！？]$', t) else t + '！！！！'
 rows = []
 for i, (lid, tag, text) in enumerate(items):
     t = READ.get(lid, text)
     g = BT[tag] if lid.startswith('b_') else ['shouting', 'exasperated'][i % 2]
+    if HYPE:
+        g = 'excited' if lid.startswith('b_') else 'shouting'
+        t = hype(t)
     rows.append(('v_' + lid, text, g, t))
 rows.append(('x_end', 'おしまい。', 'calm', 'おしまい。'))
 json.dump([[a, b] for a, b, _, _ in rows], open(os.path.join(OUT, 'vs_t.json'), 'w', encoding='utf8'), ensure_ascii=False)
