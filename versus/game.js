@@ -79,7 +79,7 @@ const SFX = ['alarm','bat','biglaugh','bigslap','blast','boing','book','bowling'
   'splat','storm','thunder','twinkle','ufo','whistle','whoosh'];
 const sfx = (name, vol) => play('../audio/sfx/' + name + '.mp3', vol);
 function stopSfx(){ live.forEach(s => { try{ s.onended = null; s.stop(); }catch(e){} }); live.clear(); }
-const xvoice = (A, name) => play('../audio/' + A.c.id + '/' + name + '.mp3', 1, voiceBus);
+const xvoice = (A, name) => play('../audio/' + A.c.id + '/' + name + '.mp3', .5, voiceBus);  // さけび声は大きく聞こえるので、セリフの半分くらい
 function slap(strong){ sfx('slap', strong ? 1 : .6); tone('sine', strong ? 160 : 120, 50, .18, strong ? .6 : .3); }
 const whoosh = () => sfx('whoosh');
 const thud = () => { sfx('crash', .8); tone('sine', 90, 35, .3, .8); };

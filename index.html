@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>なんでやねん道場</title>
-<meta name="tsukkomi-build" content="20261127-0617">
+<meta name="tsukkomi-build" content="20261127-0830">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -17,8 +17,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
 <script src="lib/firebase-app-compat.js"></script>
 <script src="lib/firebase-database-compat.js"></script>
-<script src="firebase-config.js?v=20261127-0617"></script>
-<script src="fb-shim.js?v=20261127-0617"></script>
+<script src="firebase-config.js?v=20261127-0830"></script>
+<script src="fb-shim.js?v=20261127-0830"></script>
 <style>
 /* 漫才の舞台。左に金びょうぶとセンターマイクの前に立つボケ、右にツッコミを選ぶ札。たて画面では上下に積む */
 :root{
@@ -772,7 +772,7 @@ function play(url, vol, dest){
 const sfx = (name, vol) => play('audio/sfx/' + name + '.mp3', vol);
 function stopSfx(){ live.forEach(s => { try{ s.onended = null; s.stop(); }catch(e){} }); live.clear(); }
 // キャラの演出の声（x_tadaima など）。口は動かさない
-const xvoice = (A, name) => play('audio/' + A.c.id + '/' + name + '.mp3', 1, voiceBus);
+const xvoice = (A, name) => play('audio/' + A.c.id + '/' + name + '.mp3', .5, voiceBus);  // さけび声は大きく聞こえるので、セリフの半分くらい
 function slap(strong){ sfx('slap', strong ? 1 : .6); tone('sine', strong ? 160 : 120, 50, .18, strong ? .6 : .3); }
 const boo = () => sfx('fail', .7);
 const whoosh = () => sfx('whoosh');
