@@ -34,3 +34,16 @@
 | shiitake | しいたけ | Kenji (UaXiTEXS9QWSPpiBdiUW) |
 | ebifry | エビフライ | Kazuha (qbfQuoRJv1T3ei3qV4bc) |
 | purin | プリン | Chii-chan (GxhGYQesaQaYKePCZDEC) |
+
+## 二人用：ツッコミ対戦（`versus/`）
+
+- 遊ぶ：https://wanafi-world.github.io/tsukkomi/versus/ （ひとり用のタイトルからも行ける）
+- 流れ：キャラ（おにぎり・しいたけ・たこやき・エビフライ・プリンの5人）→ じゃんけん（勝った人が先こう・後こうをえらぶ）→ 先こう・後こうの順にセリフを5つずつ（先こうの1番目はボケだけ）→ 10本のセリフがこうごに自動ですすむ → わらいの合計で勝ち負け
+- ネタ：`versus/data.js`（ボケ24・ツッコミ24。種類は でかすぎ・食べもの・ねむい・じまん・空・かんちがい ＋ だれにでも）。ツッコミは、いつも1つ前のセリフの人に入る
+- 点：ボケ +10。同じ種類のボケが2回つづくと「のりボケ」+30 で、次のツッコミが2ばい。ボケと同じ種類のツッコミは「ピッタリ！」（ツッコミ +50・ボケ +30、種類ごとの演出）。だれにでもツッコミは +25 / +10、ちがう種類は +15 / +5。ツッコミにツッコむと「ツッコミがえし」+30
+- 画面：`versus/index.html`（形）・`versus/vs.css`・`versus/game.js`（画面の流れ・音・テロップ・ボケのポーズ）・`versus/moves.js`（ツッコミの動き24種）。動きはどれも「右の人が左の人にツッコむ」向きで書いてあり、1P がツッコむときは `#world` を左右反転する（文字は反転しない場所に出す）
+- ボケのポーズ：`img/chars/<id>/16〜29.webp`（16 おなか・17 さけぶ・18 背のび・19 にぎる・20 皿で飲む・21 ドヤ・22 立ってねる・23 親指・24 こしに手・25 手かがみ・26 力こぶ・27 空を指す・28 首かしげ・29 バナナ電話）。Higgsfield で「左上が立つ」の 4×2 表を作り、`python3 versus/tools/make_sprites_vs.py <背景なしの表.png> <id> 16`（2まい目は 23）で切る。meta.json の x に `{w,h,ax}`（ax は足もとの横の場所）
+- 小道具：`img/vs/`（`python3 versus/tools/cut_props.py <表.png> 列 行 名前...` で切る）。カラス人間は crow_up / crow_glide / crow_down（右向き）
+- 背景：`img/bg/` に sky（空）・baseball（野球場）・night（夜の町）を追加
+- 声：`audio/<id>/v_<セリフid>.mp3`。`python3 versus/tools/voice_script.py <出力フォルダ>` の台本を ElevenLabs（eleven_v3、上の表の声）で読ませ、文字起こし（words.json）をつけて `split_voice.py` で切ったあと、`ffmpeg -af atempo=1.25` で早口にした。たこやきの声は先に `afftdn=nr=24:nf=-38,agate` で雑音をとる
+- BGM：`versus/bgm/menu.mp3`（えらぶ画面）・`play.mp3`（本番）。ElevenLabs の音楽（eleven_music_v2_5）で作った。声の間は小さくなる
