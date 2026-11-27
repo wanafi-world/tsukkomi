@@ -12,7 +12,7 @@
   - 絵を作りなおしたら `python3 tools/sync_data.py` で index.html の CHARS を meta.json に合わせる
 - 小道具：`img/props/`（犬・ほこり・ボール・雲・大きな手・ミサイル・かみなり雲・いなずま・ばくはつ・ばんそうこう・ビリビリ）。サッカーゴールは index.html の中の SVG
 - 別のシーンの背景：`img/bg/`（street 住宅街・stadium サッカー場・storm あらし）。Higgsfield（nano_banana_2）でキャラの絵を参考にして作った。足もとの高さは index.html の `BG`
-- 効果音：`audio/sfx/*.mp3`。Higgsfield の search_sound_effects（Epidemic Sound）で選んで、ffmpeg で短く切って音量をそろえた
+- 効果音：`audio/sfx/*.mp3`。Higgsfield の search_sound_effects（Epidemic Sound）で選んで、ffmpeg で短く切り、`python3 tools/loudness.py --fix` で大きさをそろえた（下の「音の大きさ」）
 - 声：`audio/<id>/b_<ネタ>.mp3`（ボケ）・`r_<ネタ>.mp3`（正しいツッコミ）・`w_<ネタ>_<0-2>.mp3`（ほかの答え）・`x_tadaima / x_uwaa / x_itai / x_goal.mp3`（演出の声）。ElevenLabs（eleven_v3）で `[long pause]` をはさんでまとめて読ませ、`python3 tools/split_voice.py <音声.mp3> <id> <boke|right|wrong|セリフ一覧.json> [文字起こし.json]` で1セリフずつに切る。読みまちがえる言葉は `tools/tts_fix.json` でかなに直して読ませる
   - 抑揚：`python3 tools/voice_prompts.py <出力フォルダ>` で、セリフごとに Audio tags（`[proud]` `[shouting]` など）を1つだけ頭につけた台本を作る（boke1 / boke2 / rightA / rightB / wrong1〜）。タグをセリフの中に入れると、そこで間があいて切りにくくなる
   - 1回に読ませるのは 5000 文字まで・音声 6 分くらいまで（それより長いと、とちゅうで切れる）。だから台本を小分けにしている
@@ -21,6 +21,26 @@
   - 無音で切ったとき「WARN」が出たら、行の数が合っていない。文字起こし（words.json）をつけて切りなおす
 - ネタ：`tools/neta.json`（100本。1回のゲームでランダムに10本）。直したら `python3 tools/sync_data.py` で index.html の `NETA` に入れる。`python3 tools/check_kanji.py` で4年生までの漢字かどうか調べる
 - ツッコミの動き：10こ（はたく・ツッコミ波・かかと落とし・おしりアタック・回転アタック〔住宅街で犬にかまれる〕・ミサイル頭つき・全力キック〔サッカー場でキーパーをぬいてゴール〕・大きな手でパーン〔ペラペラになる〕・あらしまでけとばす〔かみなりでビリビリ〕・よけられツッコミ〔ジャンプでよける→ミサイル〕）。1回に4つ（正しい動き＋ランダムに3つ）を出す
+
+## 音の大きさ
+
+声がいつもはっきり聞こえて、びっくりする音がないように、大きさを決めている（ひとり用・二人用で同じ）。単位は LUFS（人の耳に合わせた大きさ。数字が小さいほど小さい音）。
+
+| 音 | 大きさ | 決めているところ |
+|---|---|---|
+| セリフ | −16 LUFS | ファイルは直さない。ゲームが読みこむときに1つずつはかって合わせる（`loud()`・`VOICE_LUFS`） |
+| さけび声（`x_uwaa` など） | セリフの 0.6 倍（−4.4 dB） | `SHOUT` |
+| 効果音 | ファイルは「いちばん大きい 0.4 秒」が −18 LUFS。鳴らすときに 0.5 倍（`SFX_VOL`）× `sfx('名前', 倍率)` の倍率 | `tools/loudness.py`・`SFX_VOL` |
+| 声が出ている間の効果音 | 0.25 倍（`SFX_DUCK`）。セリフより 10 dB より下になる | `duck()` |
+| BGM（二人用） | ファイルは −17 LUFS くらい。0.3 倍（`BGM_VOL`）、声の間は 0.09 倍（`BGM_DUCK`） | `versus/game.js` |
+
+- 最後にリミッターをかけているので、音が重なっても音がわれない
+- `sfx('名前', 倍率)` の倍率のめやす：「バシッ」「ドーン」などの主役の音は 1、長くつづく音（あらし・地しん・ビリビリ・ふえ）は 0.5〜0.7、お客さんのわらい・はく手は 0.45〜0.7、ボタンの音は 0.3〜0.5
+- 新しい効果音を足したら：`python3 tools/loudness.py --fix audio/sfx/新しい音.mp3`（そろえたファイルには印がつき、2回目からは作りなおさない。やりなおすときは `--force`）。作りなおしたら `SFX_V`（index.html と versus/game.js）を上げる
+- 新しい BGM を足したら：`python3 tools/loudness.py --fix --bgm versus/bgm/新しい曲.mp3`
+- 新しい声は、そのまま入れてよい（ゲームがそろえる）
+- はかるだけ：`python3 tools/loudness.py audio/sfx/*.mp3`（I は全体、M はいちばん大きい 0.4 秒）
+- 「バシッ」のようにとても短い音（bat・bigslap・kick・slap など）は、山をつぶさないと −18 までとどかないので、少し小さいままにしてある（そのぶん倍率を 1 より大きくしてもよい）
 
 ## キャラと声
 
@@ -49,4 +69,4 @@
   - 声が低めだった おにぎり・しいたけ・たこやき は、二人用だけ 高めの声・ハイテンションにした（eleven_v4、台本は `voice_script.py <出力フォルダ> hype`：ボケは `[excited]`、ツッコミは `[shouting]`、文の終わりは「！！！！」）
     - おにぎり：Yudai (DxJgF0EHr8D4pzexzxtd)／しいたけ：Oira (Mw7z4OZeUftXQhplQJxC)／たこやき：Haru・関西 (GwO130spypDujqzJqG1g)
   - エビフライ・プリンは上の表の声（eleven_v3）のまま
-- BGM：`versus/bgm/menu.mp3`（えらぶ画面）・`play.mp3`（本番）。ElevenLabs の音楽（eleven_music_v2_5）で作った。声の間は小さくなる
+- BGM：`versus/bgm/menu.mp3`（えらぶ画面）・`play.mp3`（本番）。ElevenLabs の音楽（eleven_music_v2_5）で作った。声の間は小さくなる（「音の大きさ」）

@@ -23,10 +23,17 @@ async function loadMeta(){
 }
 
 // ---- 音 ----
-let ac = null, master = null, bgmGain = null;
+// 音の道：声（voiceBus）・効果音（sfxBus）・BGM（bgmDip → bgmGain）→ master → リミッター。声（セリフ・さけび声）の間は効果音と BGM を小さくする
+// 大きさの決まり（README「音の大きさ」）：セリフ −16 LUFS ＞ さけび声（セリフの 0.6 倍）＞ 効果音（ファイルは −18 LUFS、× SFX_VOL × 1つずつの倍率）＞ BGM
+let ac = null, master = null, bgmGain = null, bgmDip = null, sfxBus = null, voiceBus = null;
+const VOICE_LUFS = -16, SHOUT = .6, SFX_VOL = .5, SFX_DUCK = .25, BGM_VOL = .3, BGM_DUCK = .09;
 function audio(){
-  if(!ac){ try{ ac = new (window.AudioContext||window.webkitAudioContext)(); master = ac.createGain(); master.connect(ac.destination);
-    bgmGain = ac.createGain(); bgmGain.gain.value = .32; bgmGain.connect(master); }catch(e){} }
+  if(!ac){ try{ ac = new (window.AudioContext||window.webkitAudioContext)();
+    const lim = ac.createDynamicsCompressor(); lim.threshold.value = -6; lim.knee.value = 4; lim.ratio.value = 12; lim.attack.value = .003; lim.release.value = .15;
+    lim.connect(ac.destination); master = ac.createGain(); master.connect(lim);
+    bgmGain = ac.createGain(); bgmGain.gain.value = BGM_VOL; bgmGain.connect(master); bgmDip = ac.createGain(); bgmDip.connect(bgmGain);
+    sfxBus = ac.createGain(); sfxBus.gain.value = SFX_VOL; sfxBus.connect(master);
+    voiceBus = ac.createGain(); voiceBus.gain.value = 1; voiceBus.connect(master); }catch(e){} }
   if(ac && ac.state === 'suspended') ac.resume();
   return ac;
 }
@@ -36,7 +43,37 @@ function tone(type, f0, f1, len, gain){
   const o = a.createOscillator(), g = a.createGain(); o.type = type;
   o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t+len);
   g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.001, t+len);
-  o.connect(g); g.connect(master); o.start(t); o.stop(t+len+.02);
+  o.connect(g); g.connect(sfxBus); o.start(t); o.stop(t+len+.02);
+}
+// 声の大きさをそろえる倍率。人の耳に合わせたはかり方（ITU-R BS.1770：K フィルター・0.4 秒ごと・静かなところは数えない）で
+// ファイルごとの大きさ（LUFS）をはかって、VOICE_LUFS に合わせる。tools/loudness.py と同じはかり方
+const louds = new WeakMap();
+function loud(buf){
+  if(!louds.has(buf)){
+    const d = buf.getChannelData(0), sr = buf.sampleRate;
+    // フィルターその1：1500 Hz から上を 4 dB 強くする。その2：38 Hz から下を切る
+    const A = Math.pow(10, 4 / 40); let w = 2 * Math.PI * 1500 / sr, c = Math.cos(w), al = Math.sin(w) / Math.SQRT2, a0 = (A+1) - (A-1)*c + 2*Math.sqrt(A)*al;
+    const s = [A*((A+1) + (A-1)*c + 2*Math.sqrt(A)*al) / a0, -2*A*((A-1) + (A+1)*c) / a0, A*((A+1) + (A-1)*c - 2*Math.sqrt(A)*al) / a0, 2*((A-1) - (A+1)*c) / a0, ((A+1) - (A-1)*c - 2*Math.sqrt(A)*al) / a0];
+    w = 2 * Math.PI * 38 / sr; c = Math.cos(w); al = Math.sin(w); a0 = 1 + al;
+    const h = [(1+c) / 2 / a0, -(1+c) / a0, (1+c) / 2 / a0, -2*c / a0, (1-al) / a0];
+    const hop = Math.round(sr * .1), pw = []; let e = 0, pk = 0, x1 = 0, x2 = 0, y1 = 0, y2 = 0, u1 = 0, u2 = 0, v1 = 0, v2 = 0;
+    for(let i = 0; i < d.length; i++){
+      const x = d[i], y = s[0]*x + s[1]*x1 + s[2]*x2 - s[3]*y1 - s[4]*y2; x2 = x1; x1 = x; y2 = y1; y1 = y;
+      const v = h[0]*y + h[1]*u1 + h[2]*u2 - h[3]*v1 - h[4]*v2; u2 = u1; u1 = y; v2 = v1; v1 = v;
+      e += v*v; if(x > pk) pk = x; else if(-x > pk) pk = -x;
+      if((i+1) % hop === 0){ pw.push(e / hop); e = 0; }
+    }
+    // 0.4 秒（0.1 秒 × 4）ごとの大きさ。0.4 秒より短い音は、全部で1つ
+    const m = []; for(let i = 0; i + 4 <= pw.length; i++) m.push((pw[i] + pw[i+1] + pw[i+2] + pw[i+3]) / 4);
+    if(!m.length) m.push((pw.reduce((a, b) => a + b, 0) * hop + e) / (4 * hop));
+    const mean = a => a.reduce((x, y) => x + y, 0) / a.length, QUIET = Math.pow(10, (-70 + .691) / 10);
+    let g = m.filter(p => p > QUIET);                                                        // 無音は数えない
+    if(g.length){ const th = Math.max(QUIET, mean(g) / 10); g = m.filter(p => p > th); }      // 平均より 10 dB 小さいところも数えない
+    const lufs = g.length ? -.691 + 10 * Math.log10(mean(g)) : VOICE_LUFS;
+    // 上げすぎ・下げすぎをしない。山が 1.3 をこえるほどは上げない（こえた分はリミッターがおさえる）
+    louds.set(buf, Math.max(.2, Math.min(8, 1.3 / Math.max(pk, .01), Math.pow(10, (VOICE_LUFS - lufs) / 20))));
+  }
+  return louds.get(buf);
 }
 const clips = new Map();
 function clip(url){
@@ -52,20 +89,22 @@ function play(url, vol, dest){
   return clip(url).then(buf => {
     const a = audio(); if(!buf || !a) return;
     const src = a.createBufferSource(), g = a.createGain(); src.buffer = buf; g.gain.value = vol == null ? 1 : vol;
-    src.connect(g); g.connect(dest || master); src.start(); live.add(src);
+    if(dest === voiceBus) g.gain.value *= loud(buf);
+    src.connect(g); g.connect(dest || sfxBus); src.start(); live.add(src); if(dest === voiceBus) duck(buf.duration);
     return new Promise(r => { src.onended = () => { live.delete(src); r(); }; });
   });
 }
 const SFX = ['alarm','bat','biglaugh','bigslap','blast','boing','book','bowling','cannon','charge','cheer','chuckle','clang','crash','crow','ding','dishes','dodge','dog',
   'drumroll','fail','fall','fanfare','fight','firework','glass','gong','ice','kick','laugh','laugh2','launch','missile','paper','pop','quake','rimshot','shock','slap','spin',
   'splat','storm','thunder','twinkle','ufo','whistle','whoosh'];
-const sfx = (name, vol) => play('../audio/sfx/' + name + '.mp3', vol);
+const SFX_V = '2';  // 効果音ファイルを作りなおしたら上げる（iPad に古い音が残らないように）
+const sfx = (name, vol) => play('../audio/sfx/' + name + '.mp3?v=' + SFX_V, vol);
 function stopSfx(){ live.forEach(s => { try{ s.onended = null; s.stop(); }catch(e){} }); live.clear(); }
-const xvoice = (A, name) => play('../audio/' + A.c.id + '/' + name + '.mp3');
-function slap(strong){ sfx('slap', strong ? 1 : .6); tone('sine', strong ? 160 : 120, 50, .18, strong ? .6 : .3); }
+const xvoice = (A, name) => play('../audio/' + A.c.id + '/' + name + '.mp3', SHOUT, voiceBus);  // さけび声はびっくりしやすいので、セリフより小さく。この間も効果音は小さくなる
+function slap(strong){ sfx('slap', strong ? 1 : .6); tone('sine', strong ? 160 : 120, 50, .18, strong ? .45 : .25); }
 const whoosh = () => sfx('whoosh');
-const thud = () => { sfx('crash', .8); tone('sine', 90, 35, .3, .8); };
-const zap = () => sfx('blast', .8);
+const thud = () => { sfx('crash', .8); tone('sine', 90, 35, .3, .5); };
+const zap = () => sfx('blast', .7);
 const twinkle = () => sfx('twinkle', .7);
 // BGM：くり返し鳴らす。声の間は小さくする
 let bgmSrc = null, bgmName = null;
@@ -75,9 +114,19 @@ async function bgm(name){
   if(!name) return;
   const buf = await clip('bgm/' + name + '.mp3'); const a = audio();
   if(!buf || !a || bgmName !== name) return;
-  const s = a.createBufferSource(); s.buffer = buf; s.loop = true; s.connect(bgmGain); s.start(); bgmSrc = s;
+  const s = a.createBufferSource(); s.buffer = buf; s.loop = true; s.connect(bgmDip); s.start(); bgmSrc = s;
 }
-function duck(on){ const a = audio(); if(!a || !bgmGain) return; bgmGain.gain.setTargetAtTime(on ? .1 : .32, a.currentTime, .08); }
+// 声が出ている間（sec 秒）効果音と BGM を小さくする。声が重なったら、長いほうが終わるまで。duck(0) ですぐもどす
+let duckEnd = 0, duckTimer = 0;
+function duck(sec){
+  const a = audio(); if(!a || !bgmGain) return; const t = a.currentTime; clearTimeout(duckTimer);
+  if(sec > 0){
+    if(duckEnd <= t){ sfxBus.gain.setTargetAtTime(SFX_DUCK, t, .03); bgmGain.gain.setTargetAtTime(BGM_DUCK, t, .08); }
+    duckEnd = Math.max(duckEnd, t + sec); duckTimer = setTimeout(() => duck(0), (duckEnd - t) * 1000);
+  }else{ duckEnd = 0; sfxBus.gain.setTargetAtTime(SFX_VOL, t, .25); bgmGain.gain.setTargetAtTime(BGM_VOL, t, .4); }
+}
+// 「ピッタリ！」などの演出の間（sec 秒）だけ、BGM を半分にする（効果音はそのまま）
+function dipBgm(sec){ const a = audio(); if(!a || !bgmDip) return; const t = a.currentTime; bgmDip.gain.setTargetAtTime(.5, t, .08); bgmDip.gain.setTargetAtTime(1, t + sec, .3); }
 
 // ---- 舞台の人 ----
 const imgs = {};
@@ -214,7 +263,7 @@ function fxEl(tag, cls){ const el = document.createElement(tag); el.className = 
 
 let seq = 0;
 let voiceSrc = null;
-function stopVoice(){ if(voiceSrc){ try{ voiceSrc.onended = null; voiceSrc.stop(); }catch(e){} voiceSrc = null; } duck(false); }
+function stopVoice(){ if(voiceSrc){ try{ voiceSrc.onended = null; voiceSrc.stop(); }catch(e){} voiceSrc = null; } duck(0); }
 const WORLD_EL = () => [boke.el, boke.body, tsu.el, tsu.body, boke.img, tsu.img, $('space'), $('spaceImg'), $('spaceImg2'), $('beam'), $('ball'), $('star'), $('kira'), $('flash'),
   $('mound'), $('goal'), $('goalNet'), $('dog'), $('dust'), $('gooal'), $('scene'), $('stamp'), $('world')];
 function stopAll(){
@@ -240,7 +289,8 @@ async function speak(actor, url, my, opt){
   if(buf && a){
     const src = a.createBufferSource(); src.buffer = buf;
     an = a.createAnalyser(); an.fftSize = 512; data = new Uint8Array(an.fftSize);
-    src.connect(an); an.connect(master); src.start(); voiceSrc = src; duck(true);
+    const g = a.createGain(); g.gain.value = loud(buf);
+    src.connect(an); an.connect(g); g.connect(voiceBus); src.start(); voiceSrc = src; duck(buf.duration);
   }
   if(opt.onStart) opt.onStart(dur);
   const t0 = performance.now();
@@ -263,7 +313,7 @@ async function speak(actor, url, my, opt){
     })(t0);
   });
   actor.img.style.transform = '';
-  if(my === seq){ voiceSrc = null; duck(false); }
+  if(my === seq) voiceSrc = null;
 }
 const VOICE_V = '2';  // 声を作りなおしたら上げる（iPad に古い声が残らないように）
 const voiceUrl = (cid, id) => '../audio/' + cid + '/v_' + id + '.mp3?v=' + VOICE_V;
@@ -355,7 +405,7 @@ function openJanken(){
     });
   };
   const reveal = async () => {
-    $('jkRes').textContent = 'じゃん けん…'; sfx('drumroll', .5);
+    $('jkRes').textContent = 'じゃん けん…'; sfx('drumroll', .4);
     await sleep(900);
     $('jkHand1').textContent = HANDS[h[0]]; $('jkHand2').textContent = HANDS[h[1]];
     $('jkRes').textContent = 'ぽん！'; sfx('pop');
@@ -365,7 +415,7 @@ function openJanken(){
       await sleep(1100); h = [null, null]; $('jkRes').textContent = 'あいこで…'; draw(); return;
     }
     const w = (h[0] - h[1] + 3) % 3 === 2 ? 0 : 1;  // グー(0)はチョキ(1)に勝つ
-    $('jkRes').textContent = (w + 1) + 'P ' + CH[G.chars[w]].name + ' の勝ち！'; sfx('fanfare', .5);
+    $('jkRes').textContent = (w + 1) + 'P ' + CH[G.chars[w]].name + ' の勝ち！'; sfx('fanfare', .4);
     $('jkTitle').textContent = (w + 1) + 'P が えらんでね';
     $('jkPick').hidden = false;
     $('jkFirst').onclick = () => { G.first = w; startPick(); };
@@ -413,7 +463,7 @@ function drawPick(){
     b.querySelector('b').textContent = TAGS[l.tag].icon;
     b.querySelector('span span').textContent = l.text;
     b.querySelector('em').textContent = TAGS[l.tag].name + (L1.kind === 'tsu' ? '・' + l.name : '');
-    b.onclick = () => { pk.sel.push(l.id); sfx('pop', .4); play(voiceUrl(G.chars[p], l.id), .8); drawPick(); };
+    b.onclick = () => { pk.sel.push(l.id); sfx('pop', .4); play(voiceUrl(G.chars[p], l.id), .9, voiceBus); drawPick(); };
     list.appendChild(b);
   });
   $('pkOk').disabled = pk.sel.length < 5;
@@ -458,7 +508,7 @@ async function startShow(){
   await Promise.race([Promise.all([readyChar(G.chars[0]), readyChar(G.chars[1]), clip(voiceUrl(G.chars[G.order[0].p], G.order[0].id))]), sleep(6000)]);
   G.running = true;
   bgm('play');
-  bangShow('はじまり！', true); sfx('fanfare', .6); sfx('cheer', .5);
+  bangShow('はじまり！', true); sfx('fanfare', .5); sfx('cheer', .4);
   await sleep(1300); $('bang').className = 'bang';
   for(let k = 0; k < 10 && G.running; k++){
     G.k = k; hudDraw();
@@ -601,7 +651,7 @@ async function doTsu(p, line, res, my){
   // わらい
   try{ navigator.vibrate && navigator.vibrate(60); }catch(e){}
   if(res.kind === 'match') await matchFx(res.tag, my);
-  else if(res.kind === 'kaeshi'){ stampShow(res.label, 'kaeshi'); sfx('laugh2', .7); sfx('rimshot', .6); }
+  else if(res.kind === 'kaeshi'){ stampShow(res.label, 'kaeshi'); sfx('laugh2', .6); sfx('rimshot', .6); }
   else sfx(res.kind === 'any' ? 'laugh2' : 'laugh', res.kind === 'any' ? .6 : .45);
   if(res.double){ await sleep(300); bangShow('2ばい！', true); sfx('ding', .7); }
   if(my !== seq) return;
@@ -618,7 +668,7 @@ async function comeBack(my){
     a.el.getAnimations().forEach(x => x.cancel()); a.body.getAnimations().forEach(x => x.cancel());
     a.img.getAnimations().forEach(x => x.cancel());
     a.frame(14); a.el.style.visibility = '';
-    sfx('fall', .6);
+    sfx('fall', .5);
     await A(a.el, [{transform:'translateY(' + (-L.floor - a.ih) + 'px)'},{transform:'translateY(0)'}], { duration: 800, easing: 'cubic-bezier(.55,0,1,1)' });
     if(my !== seq) return;
     thud(); dustAt(a.x, L.floor, L.FH * .7); a.frame(12); shake();
@@ -642,9 +692,9 @@ function confetti(n){
 }
 async function matchFx(tag, my){
   const W = L.W, H = L.H;
-  sfx('whistle', .7); sfx('biglaugh', .9); stampShow('ピッタリ！'); confetti(60);
-  duck(true);
-  if(tag === 'big'){ sfx('quake', .9); shake(true); }
+  sfx('whistle', .5); sfx('biglaugh', .7); stampShow('ピッタリ！'); confetti(60);
+  dipBgm(2.2);
+  if(tag === 'big'){ sfx('quake', .65); shake(true); }
   else if(tag === 'food'){
     ['sushi', 'curry', 'cakeonigiri', 'sushi', 'curry', 'cakeonigiri', 'sushi'].forEach((n, i) => {
       const w = L.FH * .35, im = vsImg(n, w, null); im.style.zIndex = 5; $('fxl').appendChild(im);
@@ -654,7 +704,7 @@ async function matchFx(tag, my){
     sfx('pop', .6);
   }else if(tag === 'sleep'){
     const w = Math.min(W, H) * .38, im = vsImg('clock', w); $('fxl').appendChild(im);
-    sfx('alarm', .8);
+    sfx('alarm', .55);
     A(im, [{opacity:0, transform:tr(W/2 - w/2, H * .5 - w * .6, 'scale(.3)')},{opacity:1, transform:tr(W/2 - w/2, H * .5 - w * .6, 'scale(1)'), offset:.1},
       {transform:tr(W/2 - w/2 - 10, H * .5 - w * .6, 'rotate(-8deg)'), offset:.2},{transform:tr(W/2 - w/2 + 10, H * .5 - w * .6, 'rotate(8deg)'), offset:.3},{transform:tr(W/2 - w/2 - 10, H * .5 - w * .6, 'rotate(-8deg)'), offset:.4},
       {transform:tr(W/2 - w/2 + 10, H * .5 - w * .6, 'rotate(8deg)'), offset:.5},{transform:tr(W/2 - w/2 - 10, H * .5 - w * .6, 'rotate(-8deg)'), offset:.6},{opacity:1, transform:tr(W/2 - w/2, H * .5 - w * .6), offset:.85},{opacity:0, transform:tr(W/2 - w/2, H * .5 - w * .6)}], 2200);
@@ -665,7 +715,7 @@ async function matchFx(tag, my){
     [l, r].forEach(el => { el.style.transform = tr(x, y); });
     A(l, [{opacity:0, transform:tr(x, y, 'scale(.4)')},{opacity:1, transform:tr(x, y), offset:.25},{opacity:1, transform:tr(x, y), offset:.4},{opacity:0, transform:tr(x - w * .4, y + H * .5, 'rotate(-60deg)')}], 2000);
     A(r, [{opacity:0, transform:tr(x, y, 'scale(.4)')},{opacity:1, transform:tr(x, y), offset:.25},{opacity:1, transform:tr(x, y), offset:.4},{opacity:0, transform:tr(x + w * .4, y + H * .5, 'rotate(60deg)')}], 2000);
-    setTimeout(() => { if(my === seq) sfx('glass', .9); }, 800);
+    setTimeout(() => { if(my === seq) sfx('glass', .75); }, 800);
   }else if(tag === 'sora'){
     for(let i = 0; i < 7; i++){
       const s = fxEl('i', 'shoot'), len = W * (.15 + Math.random() * .15); s.style.width = len + 'px';
@@ -683,7 +733,6 @@ async function matchFx(tag, my){
     A(q, [{opacity:1},{opacity:0}], { duration: 500, delay: 700 });
   }
   await sleep(1900);
-  duck(false);
 }
 
 // ---- 結果 ----
@@ -701,7 +750,7 @@ function finish(){
     pair.appendChild(f);
   });
   $('endRank').textContent = w < 0 ? 'ひきわけ！ ふたりとも おもしろい！' : (w + 1) + 'P ' + CH[G.chars[w]].name + ' の勝ち！';
-  sfx(w < 0 ? 'cheer' : 'fanfare', .7); sfx('biglaugh', .6);
+  sfx(w < 0 ? 'cheer' : 'fanfare', .7); sfx('biglaugh', .45);
   const list = $('endList'); list.innerHTML = '';
   G.log.forEach((e, k) => {
     const d = document.createElement('div');
@@ -717,7 +766,7 @@ $('toCharBtn').onclick = () => { unlock(); openChars(); };
 $('startBtn').onclick = () => { unlock(); preloadAll(); openChars(); };
 
 function preloadAll(){
-  SFX.forEach(n => clip('../audio/sfx/' + n + '.mp3'));
+  SFX.forEach(n => clip('../audio/sfx/' + n + '.mp3?v=' + SFX_V));
   clip('bgm/play.mp3'); clip('bgm/menu.mp3');
   CHARS.forEach(c => { framesOf(c.id); ['x_uwaa', 'x_itai', 'x_tadaima', 'x_goal'].forEach(n => clip('../audio/' + c.id + '/' + n + '.mp3')); });
   Object.keys(VSZ).forEach(n => { new Image().src = n === 'cloud' ? '../img/props/cloud.webp' : '../img/vs/' + n + '.webp'; });
